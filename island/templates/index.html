@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Henry Island</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header id="hud">
+    <h1>🎄 Henry Island</h1>
+    <div id="hud-date" aria-live="polite"></div>
+    <div id="hud-player" hidden>
+      <span>Playing as <strong id="hud-player-name"></strong></span>
+      <button type="button" id="switch-player" class="btn small">Switch islander</button>
+    </div>
+  </header>
+  <p id="help">Walk with the arrow keys / WASD or tap the snow. Click your avatar to see today's games &amp; your score. Click a sign to visit a game.</p>
+
+  <main id="world">
+    <svg id="island" viewBox="0 0 1600 1100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Henry Island">
+      <defs>
+        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#7cc4e4"/>
+          <stop offset="1" stop-color="#3f8fc0"/>
+        </linearGradient>
+        <radialGradient id="snowground" cx="0.5" cy="0.45" r="0.6">
+          <stop offset="0" stop-color="#ffffff"/>
+          <stop offset="0.75" stop-color="#eef6fb"/>
+          <stop offset="1" stop-color="#d7e9f3"/>
+        </radialGradient>
+        <radialGradient id="ice" cx="0.4" cy="0.4" r="0.7">
+          <stop offset="0" stop-color="#bfe8f7"/>
+          <stop offset="1" stop-color="#5aa9d6"/>
+        </radialGradient>
+
+        <g id="tree">
+          <ellipse cx="0" cy="2" rx="30" ry="8" fill="#000" opacity=".12"/>
+          <rect x="-6" y="-16" width="12" height="18" fill="#7a4b2a"/>
+          <polygon points="-34,-14 34,-14 0,-58" fill="#2f7d4f"/>
+          <polygon points="-28,-40 28,-40 0,-82" fill="#38925d"/>
+          <polygon points="-20,-64 20,-64 0,-102" fill="#43a76a"/>
+          <path d="M-20,-64 Q0,-58 20,-64 L12,-76 Q0,-72 -12,-76Z M-28,-40 Q0,-33 28,-40 L18,-50 Q0,-45 -18,-50Z M-34,-14 Q0,-7 34,-14 L24,-24 Q0,-19 -24,-24Z" fill="#fff"/>
+          <polygon points="0,-112 4,-102 14,-102 6,-96 9,-86 0,-92 -9,-86 -6,-96 -14,-102 -4,-102" fill="#ffd34d"/>
+          <circle cx="-12" cy="-30" r="3.5" fill="#e63946"/><circle cx="14" cy="-52" r="3.5" fill="#ffd34d"/>
+          <circle cx="8" cy="-26" r="3.5" fill="#4cc9f0"/><circle cx="-8" cy="-72" r="3.5" fill="#e63946"/>
+        </g>
+        <g id="candycane">
+          <path d="M0,0 L0,-46 A11,11 0 0 1 22,-46 L22,-40" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+          <path d="M0,0 L0,-46 A11,11 0 0 1 22,-46 L22,-40" fill="none" stroke="#e63946" stroke-width="7" stroke-dasharray="6 6" stroke-linecap="butt"/>
+        </g>
+        <g id="present">
+          <rect x="-12" y="-22" width="24" height="22" rx="2" fill="#e63946"/>
+          <rect x="-3" y="-22" width="6" height="22" fill="#ffd34d"/>
+          <rect x="-12" y="-14" width="24" height="5" fill="#ffd34d"/>
+          <path d="M0,-22 q-10,-10 -10,0 z M0,-22 q10,-10 10,0 z" fill="#ffd34d"/>
+        </g>
+        <g id="loghouse">
+          <ellipse cx="0" cy="4" rx="100" ry="14" fill="#000" opacity=".12"/>
+          <rect x="52" y="-150" width="18" height="50" fill="#8a5a3b"/>
+          <rect x="49" y="-156" width="24" height="10" fill="#fff"/>
+          <rect x="-80" y="-90" width="160" height="90" fill="#9b6338"/>
+          <g stroke="#6e4224" stroke-width="3">
+            <line x1="-80" y1="-75" x2="80" y2="-75"/><line x1="-80" y1="-60" x2="80" y2="-60"/>
+            <line x1="-80" y1="-45" x2="80" y2="-45"/><line x1="-80" y1="-30" x2="80" y2="-30"/>
+            <line x1="-80" y1="-15" x2="80" y2="-15"/>
+          </g>
+          <g fill="#7a4b2a">
+            <circle cx="-80" cy="-82" r="7"/><circle cx="-80" cy="-52" r="7"/><circle cx="-80" cy="-22" r="7"/>
+            <circle cx="80" cy="-82" r="7"/><circle cx="80" cy="-52" r="7"/><circle cx="80" cy="-22" r="7"/>
+          </g>
+          <polygon points="-100,-86 100,-86 0,-160" fill="#7a3d22"/>
+          <path d="M-104,-84 L0,-164 L104,-84 Q80,-92 60,-86 Q30,-96 0,-88 Q-30,-96 -60,-86 Q-80,-92 -104,-84Z" fill="#fff"/>
+          <rect x="-14" y="-52" width="28" height="52" rx="4" fill="#5c321b"/>
+          <circle cx="8" cy="-26" r="2.5" fill="#ffd34d"/>
+          <circle cx="0" cy="-66" r="9" fill="#2f7d4f" stroke="#e63946" stroke-width="3"/>
+          <rect x="-62" y="-62" width="30" height="26" fill="#ffe08a" stroke="#5c321b" stroke-width="4"/>
+          <rect x="32" y="-62" width="30" height="26" fill="#ffe08a" stroke="#5c321b" stroke-width="4"/>
+          <line x1="-47" y1="-62" x2="-47" y2="-36" stroke="#5c321b" stroke-width="3"/>
+          <line x1="47" y1="-62" x2="47" y2="-36" stroke="#5c321b" stroke-width="3"/>
+        </g>
+        <g id="reindeer">
+          <ellipse cx="0" cy="2" rx="30" ry="6" fill="#000" opacity=".12"/>
+          <g stroke="#6b3e1f" stroke-width="5" stroke-linecap="round">
+            <line x1="-18" y1="-20" x2="-20" y2="0"/><line x1="-8" y1="-20" x2="-8" y2="0"/>
+            <line x1="12" y1="-20" x2="12" y2="0"/><line x1="20" y1="-20" x2="22" y2="0"/>
+          </g>
+          <ellipse cx="0" cy="-26" rx="28" ry="14" fill="#a0673a"/>
+          <ellipse cx="0" cy="-20" rx="16" ry="6" fill="#e9d2b5"/>
+          <path d="M18,-32 L28,-50 L36,-46 L28,-28Z" fill="#a0673a"/>
+          <ellipse cx="38" cy="-54" rx="12" ry="9" fill="#a0673a"/>
+          <g stroke="#7a4b2a" stroke-width="3" fill="none" stroke-linecap="round">
+            <path d="M32,-62 L26,-78 M28,-72 L20,-76 M40,-62 L44,-80 M43,-74 L50,-78"/>
+          </g>
+          <circle cx="40" cy="-56" r="2" fill="#222"/>
+          <rect x="18" y="-38" width="16" height="4" rx="2" fill="#e63946"/>
+          <circle cx="26" cy="-34" r="3" fill="#ffd34d"/>
+        </g>
+        <g id="santa">
+          <ellipse cx="0" cy="2" rx="22" ry="6" fill="#000" opacity=".12"/>
+          <rect x="-12" y="-14" width="10" height="14" fill="#222"/><rect x="2" y="-14" width="10" height="14" fill="#222"/>
+          <path d="M-22,-12 Q-24,-50 0,-54 Q24,-50 22,-12Z" fill="#d62828"/>
+          <rect x="-22" y="-30" width="44" height="7" fill="#222"/>
+          <rect x="-5" y="-31" width="10" height="9" fill="none" stroke="#ffd34d" stroke-width="2.5"/>
+          <rect x="-23" y="-15" width="46" height="5" rx="2" fill="#fff"/>
+          <path d="M22,-46 Q34,-62 30,-74" stroke="#d62828" stroke-width="8" fill="none" stroke-linecap="round" class="wave-arm"/>
+          <circle cx="30" cy="-76" r="5" fill="#fff"/>
+          <circle cx="0" cy="-66" r="14" fill="#f7c9a3"/>
+          <path d="M-15,-66 Q-16,-38 0,-36 Q16,-38 15,-66 Q8,-58 0,-60 Q-8,-58 -15,-66Z" fill="#fff"/>
+          <circle cx="-5" cy="-70" r="2" fill="#222"/><circle cx="5" cy="-70" r="2" fill="#222"/>
+          <circle cx="0" cy="-64" r="3" fill="#ef8f80"/>
+          <path d="M-15,-74 Q-12,-96 12,-94 Q22,-90 26,-80 L15,-76Z" fill="#d62828"/>
+          <rect x="-17" y="-79" width="34" height="7" rx="3" fill="#fff"/>
+          <circle cx="27" cy="-80" r="5" fill="#fff"/>
+        </g>
+        <g id="sleigh">
+          <ellipse cx="0" cy="6" rx="80" ry="10" fill="#000" opacity=".12"/>
+          <path d="M-70,0 L60,0 Q80,0 82,-14" stroke="#e0a526" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <line x1="-50" y1="0" x2="-50" y2="-14" stroke="#e0a526" stroke-width="4"/>
+          <line x1="40" y1="0" x2="40" y2="-14" stroke="#e0a526" stroke-width="4"/>
+          <path d="M-74,-14 L56,-14 Q72,-14 70,-34 L62,-40 Q50,-30 20,-34 L-40,-34 Q-60,-50 -78,-70 Q-90,-40 -74,-14Z" fill="#c1121f"/>
+          <path d="M-74,-18 L56,-18" stroke="#ffd34d" stroke-width="3"/>
+          <ellipse cx="-20" cy="-50" rx="30" ry="22" fill="#8a6b3b"/>
+          <path d="M-30,-70 Q-20,-80 -10,-70" stroke="#5c4422" stroke-width="4" fill="none"/>
+          <use href="#present" x="20" y="-34"/>
+        </g>
+        <g id="penguin">
+          <ellipse cx="0" cy="2" rx="14" ry="4" fill="#000" opacity=".15"/>
+          <ellipse cx="-6" cy="0" rx="6" ry="3" fill="#f4a259"/><ellipse cx="6" cy="0" rx="6" ry="3" fill="#f4a259"/>
+          <ellipse cx="0" cy="-20" rx="15" ry="20" fill="#1d2433"/>
+          <ellipse cx="0" cy="-17" rx="10" ry="15" fill="#fff"/>
+          <circle cx="0" cy="-40" r="11" fill="#1d2433"/>
+          <ellipse cx="0" cy="-38" rx="7" ry="6" fill="#fff"/>
+          <circle cx="-3" cy="-41" r="1.8" fill="#000"/><circle cx="3" cy="-41" r="1.8" fill="#000"/>
+          <polygon points="-3,-37 3,-37 0,-32" fill="#f4a259"/>
+          <path d="M-14,-24 Q-22,-14 -16,-8" stroke="#1d2433" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <path d="M14,-24 Q22,-14 16,-8" stroke="#1d2433" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <rect x="-11" y="-30" width="22" height="5" rx="2" fill="#e63946"/>
+        </g>
+        <g id="snowpile">
+          <ellipse cx="0" cy="0" rx="28" ry="10" fill="#fff"/>
+          <ellipse cx="-8" cy="-6" rx="14" ry="8" fill="#fff"/>
+          <ellipse cx="10" cy="-4" rx="12" ry="7" fill="#f4f9fd"/>
+        </g>
+      </defs>
+
+      <!-- Sea -->
+      <rect width="1600" height="1100" fill="url(#sea)"/>
+      <g fill="none" stroke="#ffffff" stroke-opacity=".35" stroke-width="3" stroke-linecap="round" class="waves">
+        <path d="M60,120 q20,-12 40,0 t40,0"/><path d="M1460,90 q20,-12 40,0 t40,0"/>
+        <path d="M80,1000 q20,-12 40,0 t40,0"/><path d="M1420,1030 q20,-12 40,0 t40,0"/>
+        <path d="M30,700 q20,-12 40,0 t40,0"/><path d="M1520,560 q20,-12 40,0 t40,0"/>
+        <path d="M760,40 q20,-12 40,0 t40,0"/><path d="M700,1070 q20,-12 40,0 t40,0"/>
+      </g>
+
+      <!-- Island -->
+      <path d="M140,520 C120,330 330,150 620,130 C860,110 1080,90 1300,190 C1480,270 1530,450 1500,620 C1470,820 1300,990 1020,1010 C760,1030 460,1020 280,900 C150,810 155,660 140,520Z"
+            fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="90"/>
+      <path d="M140,520 C120,330 330,150 620,130 C860,110 1080,90 1300,190 C1480,270 1530,450 1500,620 C1470,820 1300,990 1020,1010 C760,1030 460,1020 280,900 C150,810 155,660 140,520Z"
+            fill="#f0dfb8" stroke="#f0dfb8" stroke-width="50"/>
+      <path id="island-ground" d="M140,520 C120,330 330,150 620,130 C860,110 1080,90 1300,190 C1480,270 1530,450 1500,620 C1470,820 1300,990 1020,1010 C760,1030 460,1020 280,900 C150,810 155,660 140,520Z"
+            fill="url(#snowground)"/>
+      <g fill="#c9e3d0" opacity=".55">
+        <ellipse cx="420" cy="560" rx="70" ry="24"/><ellipse cx="1180" cy="420" rx="60" ry="20"/>
+        <ellipse cx="860" cy="900" rx="80" ry="22"/><ellipse cx="300" cy="420" rx="40" ry="14"/>
+      </g>
+
+      <!-- Paths -->
+      <g fill="none" stroke="#d9c39c" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M800,560 C700,500 560,440 470,440"/>
+        <path d="M800,560 C900,580 1000,610 1110,620"/>
+        <path d="M800,560 C720,660 640,780 580,830"/>
+        <path d="M800,560 C800,460 790,380 780,300"/>
+      </g>
+      <g fill="none" stroke="#e8d7b6" stroke-width="10" stroke-linecap="round" stroke-dasharray="2 26">
+        <path d="M800,560 C700,500 560,440 470,440"/>
+        <path d="M800,560 C900,580 1000,610 1110,620"/>
+        <path d="M800,560 C720,660 640,780 580,830"/>
+        <path d="M800,560 C800,460 790,380 780,300"/>
+      </g>
+
+      <!-- Central plaza -->
+      <ellipse cx="800" cy="575" rx="275" ry="185" fill="#e3d2b2" stroke="#cdb48a" stroke-width="8"/>
+      <ellipse cx="800" cy="575" rx="245" ry="160" fill="none" stroke="#d6c39f" stroke-width="3" stroke-dasharray="14 10"/>
+
+      <!-- Henry-Wordle: the Wordle Lodge -->
+      <g class="zone" aria-label="Wordle Lodge">
+        <use href="#loghouse" x="320" y="400"/>
+        <g transform="translate(320 285)">
+          <rect x="-66" y="-16" width="132" height="30" rx="4" fill="#5c321b"/>
+          <g font-family="Arial Rounded MT Bold, Arial, sans-serif" font-weight="bold" font-size="16" text-anchor="middle" fill="#fff">
+            <rect x="-62" y="-12" width="22" height="22" fill="#6aaa64"/><text x="-51" y="5">W</text>
+            <rect x="-37" y="-12" width="22" height="22" fill="#c9b458"/><text x="-26" y="5">O</text>
+            <rect x="-12" y="-12" width="22" height="22" fill="#787c7e"/><text x="-1" y="5">R</text>
+            <rect x="13" y="-12" width="22" height="22" fill="#6aaa64"/><text x="24" y="5">D</text>
+            <rect x="38" y="-12" width="22" height="22" fill="#c9b458"/><text x="49" y="5">S</text>
+          </g>
+        </g>
+      </g>
+
+      <!-- Henry-Lake -->
+      <g class="zone" aria-label="Henry Lake">
+        <ellipse id="lake-water" cx="1300" cy="620" rx="160" ry="105" fill="url(#ice)" stroke="#e8f6fc" stroke-width="10"/>
+        <g fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="3" class="ripples">
+          <ellipse cx="1260" cy="600" rx="40" ry="12"/><ellipse cx="1350" cy="650" rx="30" ry="9"/>
+        </g>
+        <g fill="#5fae5b" stroke="#3f8a3f" stroke-width="2">
+          <path d="M1210,640 a18,11 0 1 0 2,-6 l14,3z"/><path d="M1380,590 a16,10 0 1 0 2,-6 l13,3z"/>
+          <path d="M1310,680 a14,9 0 1 0 2,-5 l11,3z"/>
+        </g>
+        <circle cx="1214" cy="632" r="4" fill="#ff8fab"/>
+      </g>
+
+      <!-- Henry-Quiz: Santa's Quiz Workshop -->
+      <g class="zone" aria-label="Quiz Workshop">
+        <ellipse cx="410" cy="884" rx="120" ry="16" fill="#000" opacity=".12"/>
+        <rect x="310" y="770" width="200" height="110" fill="#c1121f"/>
+        <g fill="#2f7d4f"><rect x="310" y="770" width="200" height="12"/><rect x="310" y="868" width="200" height="12"/></g>
+        <polygon points="290,776 530,776 410,690" fill="#2f7d4f"/>
+        <path d="M286,778 L410,684 L534,778 Q500,768 470,774 Q440,764 410,772 Q380,764 350,774 Q320,768 286,778Z" fill="#fff"/>
+        <rect x="380" y="810" width="60" height="70" rx="6" fill="#7a3d22"/>
+        <circle cx="410" cy="738" r="26" fill="#ffd34d" stroke="#fff" stroke-width="4"/>
+        <text x="410" y="752" font-size="40" font-weight="bold" font-family="Georgia, serif" text-anchor="middle" fill="#c1121f">?</text>
+        <rect x="326" y="800" width="40" height="34" fill="#ffe08a" stroke="#fff" stroke-width="4"/>
+        <rect x="454" y="800" width="40" height="34" fill="#ffe08a" stroke="#fff" stroke-width="4"/>
+        <use href="#present" x="300" y="890"/><use href="#present" x="526" y="888"/>
+      </g>
+
+      <!-- Santa, his sleigh and reindeer -->
+      <g class="zone" aria-label="Santa's sleigh">
+        <use href="#sleigh" x="760" y="260"/>
+        <use href="#reindeer" x="880" y="250" class="bob"/>
+        <use href="#reindeer" x="960" y="246" class="bob delay"/>
+        <use href="#reindeer" x="1040" y="250" class="bob"/>
+        <g stroke="#7a4b2a" stroke-width="2"><line x1="842" y1="238" x2="1070" y2="214"/></g>
+        <use href="#santa" x="660" y="270" class="santa"/>
+      </g>
+
+      <!-- Winter log houses -->
+      <use href="#loghouse" x="1250" y="350"/>
+      <use href="#loghouse" x="1130" y="920"/>
+
+      <!-- Trees, candy canes and snow piles -->
+      <use href="#tree" x="230" y="560"/><use href="#tree" x="260" y="720"/><use href="#tree" x="560" y="230"/>
+      <use href="#tree" x="470" y="200"/><use href="#tree" x="1100" y="215"/><use href="#tree" x="1430" y="470"/>
+      <use href="#tree" x="1410" y="780"/><use href="#tree" x="940" y="980"/><use href="#tree" x="700" y="985"/>
+      <use href="#tree" x="220" y="440"/><use href="#tree" x="1370" y="250"/><use href="#tree" x="620" y="930"/>
+      <use href="#candycane" x="560" y="470"/><use href="#candycane" x="640" y="480"/>
+      <use href="#candycane" x="980" y="640"/><use href="#candycane" x="1040" y="580"/>
+      <use href="#candycane" x="650" y="790"/><use href="#candycane" x="720" y="740"/>
+      <use href="#candycane" x="760" y="360"/><use href="#candycane" x="820" y="360"/>
+      <use href="#snowpile" x="330" y="640"/><use href="#snowpile" x="1020" y="440"/>
+      <use href="#snowpile" x="850" y="1000"/><use href="#snowpile" x="1300" y="820"/>
+
+      <g id="leaderboard"></g>
+      <g id="signs"></g>
+      <g id="npcs"></g>
+      <g id="player-layer"></g>
+    </svg>
+    <canvas id="snow" aria-hidden="true"></canvas>
+  </main>
+
+  <!-- Avatar card: shown when the player clicks their avatar -->
+  <section id="avatar-card" class="card" hidden aria-live="polite">
+    <button type="button" class="close" data-close="avatar-card" aria-label="Close">×</button>
+    <h2 id="card-name"></h2>
+    <p class="score-line">⛄ Total score: <strong id="card-total">0</strong> <span class="muted">(today: <span id="card-today">0</span>)</span></p>
+    <h3>Games still to play today</h3>
+    <ul id="card-games"></ul>
+    <button type="button" class="btn small" id="card-change-avatar">Change avatar</button>
+  </section>
+
+  <!-- Welcome / choose islander -->
+  <div id="welcome" class="modal" hidden>
+    <div class="modal-box welcome-box">
+      <h2>Welcome to Henry Island! ❄️</h2>
+      <div id="existing-players-section">
+        <h3>Who's visiting today?</h3>
+        <div id="existing-players" class="player-grid"></div>
+        <p class="muted">…or move in as a new islander:</p>
+      </div>
+      <form id="new-player-form" autocomplete="off">
+        <label>Your name <input type="text" id="new-player-name" maxlength="20" required></label>
+        <fieldset>
+          <legend>Choose your avatar</legend>
+          <div id="avatar-choices" class="avatar-grid"></div>
+        </fieldset>
+        <p class="error" id="new-player-error" role="alert"></p>
+        <button type="submit" class="btn">Move to the island</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Change avatar -->
+  <div id="avatar-picker" class="modal" hidden>
+    <div class="modal-box">
+      <button type="button" class="close" data-close="avatar-picker" aria-label="Close">×</button>
+      <h2>Choose your avatar</h2>
+      <div id="avatar-picker-choices" class="avatar-grid"></div>
+    </div>
+  </div>
+
+  <!-- Games -->
+  <div id="game-modal" class="modal" hidden>
+    <div class="modal-box game-box" id="game-box">
+      <button type="button" class="close" id="game-close" aria-label="Close">×</button>
+      <div id="game-content"></div>
+    </div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script id="island-config" type="application/json">{{ {"games": games, "avatars": avatars} | tojson }}</script>
+  <script src="{{ url_for('static', filename='js/avatars.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/island.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/games.js') }}"></script>
+</body>
+</html>

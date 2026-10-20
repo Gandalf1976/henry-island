@@ -1,0 +1,1242 @@
+[
+ {
+  "category": "Geography",
+  "question": "What is the capital city of Australia?",
+  "answer": "Canberra",
+  "wrong": [
+   "Sydney",
+   "Melbourne",
+   "Perth"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "Which is the longest river in Africa?",
+  "answer": "Nile",
+  "wrong": [
+   "Congo",
+   "Niger",
+   "Zambezi"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "Which is the largest ocean on Earth?",
+  "answer": "Pacific Ocean",
+  "wrong": [
+   "Atlantic Ocean",
+   "Indian Ocean",
+   "Arctic Ocean"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "Mount Everest is part of which mountain range?",
+  "answer": "The Himalayas",
+  "wrong": [
+   "The Andes",
+   "The Alps",
+   "The Rockies"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "What is the capital city of Canada?",
+  "answer": "Ottawa",
+  "wrong": [
+   "Toronto",
+   "Vancouver",
+   "Montreal"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "On which continent is Egypt?",
+  "answer": "Africa",
+  "wrong": [
+   "Asia",
+   "Europe",
+   "South America"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "Which is the largest country in the world by area?",
+  "answer": "Russia",
+  "wrong": [
+   "Canada",
+   "China",
+   "United States"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "What is the capital city of Japan?",
+  "answer": "Tokyo",
+  "wrong": [
+   "Kyoto",
+   "Osaka",
+   "Seoul"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "Which European country is famously shaped like a boot?",
+  "answer": "Italy",
+  "wrong": [
+   "Spain",
+   "Greece",
+   "Portugal"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "What is the largest hot desert in the world?",
+  "answer": "Sahara",
+  "wrong": [
+   "Gobi",
+   "Kalahari",
+   "Atacama"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "What is the capital city of Spain?",
+  "answer": "Madrid",
+  "wrong": [
+   "Barcelona",
+   "Seville",
+   "Lisbon"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "How many continents are there?",
+  "answer": "7",
+  "wrong": [
+   "5",
+   "6",
+   "8"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "Which river flows through Paris?",
+  "answer": "Seine",
+  "wrong": [
+   "Thames",
+   "Rhine",
+   "Danube"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "What is the capital city of Scotland?",
+  "answer": "Edinburgh",
+  "wrong": [
+   "Glasgow",
+   "Aberdeen",
+   "Dundee"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "The Great Barrier Reef lies off the coast of which country?",
+  "answer": "Australia",
+  "wrong": [
+   "Brazil",
+   "Mexico",
+   "Indonesia"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "Which US state is made up entirely of islands?",
+  "answer": "Hawaii",
+  "wrong": [
+   "Alaska",
+   "Florida",
+   "Maine"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "What is the smallest country in the world?",
+  "answer": "Vatican City",
+  "wrong": [
+   "Monaco",
+   "San Marino",
+   "Liechtenstein"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "What is the capital city of Brazil?",
+  "answer": "Brasília",
+  "wrong": [
+   "Rio de Janeiro",
+   "São Paulo",
+   "Salvador"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "Which imaginary line divides the Earth into the Northern and Southern hemispheres?",
+  "answer": "The Equator",
+  "wrong": [
+   "The Prime Meridian",
+   "The Tropic of Cancer",
+   "The International Date Line"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "Mount Kilimanjaro is in which country?",
+  "answer": "Tanzania",
+  "wrong": [
+   "Kenya",
+   "Uganda",
+   "Ethiopia"
+  ]
+ },
+ {
+  "category": "Geography",
+  "question": "What is the highest mountain in the United Kingdom?",
+  "answer": "Ben Nevis",
+  "wrong": [
+   "Snowdon",
+   "Scafell Pike",
+   "Slieve Donard"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "What is the chemical symbol for gold?",
+  "answer": "Au",
+  "wrong": [
+   "Ag",
+   "Gd",
+   "Go"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "Which planet is known as the Red Planet?",
+  "answer": "Mars",
+  "wrong": [
+   "Venus",
+   "Jupiter",
+   "Mercury"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "Which gas do plants absorb from the air for photosynthesis?",
+  "answer": "Carbon dioxide",
+  "wrong": [
+   "Oxygen",
+   "Nitrogen",
+   "Hydrogen"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "How many bones are there in an adult human body?",
+  "answer": "206",
+  "wrong": [
+   "186",
+   "226",
+   "306"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "What is the largest planet in our solar system?",
+  "answer": "Jupiter",
+  "wrong": [
+   "Saturn",
+   "Neptune",
+   "Earth"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "At sea level, water boils at what temperature in degrees Celsius?",
+  "answer": "100",
+  "wrong": [
+   "90",
+   "110",
+   "212"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "What is the fastest land animal?",
+  "answer": "Cheetah",
+  "wrong": [
+   "Lion",
+   "Pronghorn",
+   "Greyhound"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "What is the hardest natural substance?",
+  "answer": "Diamond",
+  "wrong": [
+   "Quartz",
+   "Granite",
+   "Iron"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "Which part of a cell is often called its control centre?",
+  "answer": "Nucleus",
+  "wrong": [
+   "Mitochondrion",
+   "Ribosome",
+   "Cell wall"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "Which organ pumps blood around the body?",
+  "answer": "Heart",
+  "wrong": [
+   "Liver",
+   "Lungs",
+   "Kidneys"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "What is the largest animal that has ever lived?",
+  "answer": "Blue whale",
+  "wrong": [
+   "African elephant",
+   "Sperm whale",
+   "Megalodon"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "H2O is the chemical formula for what?",
+  "answer": "Water",
+  "wrong": [
+   "Hydrogen peroxide",
+   "Salt",
+   "Oxygen"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "Roughly how fast does light travel?",
+  "answer": "300,000 km per second",
+  "wrong": [
+   "3,000 km per second",
+   "30,000 km per second",
+   "3,000,000 km per second"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "What is the closest star to Earth?",
+  "answer": "The Sun",
+  "wrong": [
+   "Proxima Centauri",
+   "Sirius",
+   "Polaris"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "What is a baby kangaroo called?",
+  "answer": "Joey",
+  "wrong": [
+   "Kit",
+   "Cub",
+   "Calf"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "Almost all wild penguins live in which hemisphere?",
+  "answer": "Southern Hemisphere",
+  "wrong": [
+   "Northern Hemisphere",
+   "Only at the North Pole",
+   "Only in the Arctic"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "Which force keeps us on the ground?",
+  "answer": "Gravity",
+  "wrong": [
+   "Magnetism",
+   "Friction",
+   "Inertia"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "Which blood cells help the body fight infection?",
+  "answer": "White blood cells",
+  "wrong": [
+   "Red blood cells",
+   "Platelets",
+   "Plasma"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "Which planet is famous for its large, bright rings?",
+  "answer": "Saturn",
+  "wrong": [
+   "Mars",
+   "Mercury",
+   "Venus"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "In North America, reindeer are also known as what?",
+  "answer": "Caribou",
+  "wrong": [
+   "Moose",
+   "Elk",
+   "Musk ox"
+  ]
+ },
+ {
+  "category": "Science and Nature",
+  "question": "A substance with a pH of 7 is described as what?",
+  "answer": "Neutral",
+  "wrong": [
+   "Acidic",
+   "Alkaline",
+   "Radioactive"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "What is the name of the snowman in Disney's Frozen?",
+  "answer": "Olaf",
+  "wrong": [
+   "Sven",
+   "Kristoff",
+   "Hans"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "Who lives in a pineapple under the sea?",
+  "answer": "SpongeBob SquarePants",
+  "wrong": [
+   "Patrick Star",
+   "Squidward",
+   "Nemo"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "Which Hogwarts house is Harry Potter sorted into?",
+  "answer": "Gryffindor",
+  "wrong": [
+   "Slytherin",
+   "Hufflepuff",
+   "Ravenclaw"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "Which Pixar film is about toys that come to life?",
+  "answer": "Toy Story",
+  "wrong": [
+   "Cars",
+   "Up",
+   "Coco"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "In Minecraft, which green mob sneaks up and explodes?",
+  "answer": "Creeper",
+  "wrong": [
+   "Zombie",
+   "Enderman",
+   "Skeleton"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "Tony Stark is the secret identity of which superhero?",
+  "answer": "Iron Man",
+  "wrong": [
+   "Captain America",
+   "Thor",
+   "Hulk"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "Which superhero is the king of Wakanda?",
+  "answer": "Black Panther",
+  "wrong": [
+   "Thor",
+   "Spider-Man",
+   "Doctor Strange"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "What is the name of Mario's brother?",
+  "answer": "Luigi",
+  "wrong": [
+   "Wario",
+   "Toad",
+   "Yoshi"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "In The Lion King, what is the name of Simba's father?",
+  "answer": "Mufasa",
+  "wrong": [
+   "Scar",
+   "Rafiki",
+   "Timon"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "What is Batman's secret identity?",
+  "answer": "Bruce Wayne",
+  "wrong": [
+   "Clark Kent",
+   "Peter Parker",
+   "Tony Stark"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "In the film 'Elf', where was Buddy raised?",
+  "answer": "The North Pole",
+  "wrong": [
+   "New York",
+   "Lapland",
+   "Iceland"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "Which Pokémon is Ash Ketchum's famous partner?",
+  "answer": "Pikachu",
+  "wrong": [
+   "Charmander",
+   "Bulbasaur",
+   "Squirtle"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "What kind of creature is Shrek?",
+  "answer": "An ogre",
+  "wrong": [
+   "A troll",
+   "A giant",
+   "A goblin"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "In Stranger Things, which character has telekinetic powers and is known by a number?",
+  "answer": "Eleven",
+  "wrong": [
+   "Max",
+   "Nancy",
+   "Robin"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "Which game series has you living on an island with animal villagers and Tom Nook?",
+  "answer": "Animal Crossing",
+  "wrong": [
+   "Stardew Valley",
+   "The Sims",
+   "Pokémon"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "In Star Wars, who is revealed to be Luke Skywalker's father?",
+  "answer": "Darth Vader",
+  "wrong": [
+   "Obi-Wan Kenobi",
+   "Han Solo",
+   "Yoda"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "In the film 'Home Alone', where is Kevin's family flying to when they leave him behind?",
+  "answer": "Paris",
+  "wrong": [
+   "London",
+   "Rome",
+   "Florida"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "In 'Finding Nemo', what kind of fish is Dory?",
+  "answer": "Blue tang",
+  "wrong": [
+   "Clownfish",
+   "Goldfish",
+   "Angelfish"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "In 'A Christmas Carol', who is visited by three ghosts?",
+  "answer": "Ebenezer Scrooge",
+  "wrong": [
+   "Bob Cratchit",
+   "Jacob Marley",
+   "Tiny Tim"
+  ]
+ },
+ {
+  "category": "Entertainment",
+  "question": "In Dr. Seuss's story, the Grinch looks down on which town?",
+  "answer": "Whoville",
+  "wrong": [
+   "Snowville",
+   "Christmastown",
+   "Hooverville"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "How many players does each team have on the pitch in a football (soccer) match?",
+  "answer": "11",
+  "wrong": [
+   "10",
+   "9",
+   "12"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "How often are the Summer Olympic Games normally held?",
+  "answer": "Every 4 years",
+  "wrong": [
+   "Every 2 years",
+   "Every 3 years",
+   "Every 5 years"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "Which sport uses a shuttlecock?",
+  "answer": "Badminton",
+  "wrong": [
+   "Tennis",
+   "Squash",
+   "Table tennis"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "What is the maximum score with three darts?",
+  "answer": "180",
+  "wrong": [
+   "150",
+   "160",
+   "200"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "How many rings are on the Olympic flag?",
+  "answer": "5",
+  "wrong": [
+   "4",
+   "6",
+   "7"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "Which sport is played at Wimbledon?",
+  "answer": "Tennis",
+  "wrong": [
+   "Golf",
+   "Cricket",
+   "Rugby"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "How many points is a try worth in rugby union?",
+  "answer": "5",
+  "wrong": [
+   "3",
+   "4",
+   "7"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "In which sport would you perform a slam dunk?",
+  "answer": "Basketball",
+  "wrong": [
+   "Volleyball",
+   "Netball",
+   "Handball"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "In golf, what is a score of one under par on a hole called?",
+  "answer": "Birdie",
+  "wrong": [
+   "Eagle",
+   "Bogey",
+   "Albatross"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "How many players from each team are on court in basketball?",
+  "answer": "5",
+  "wrong": [
+   "4",
+   "6",
+   "7"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "Which country hosted the first modern Olympic Games in 1896?",
+  "answer": "Greece",
+  "wrong": [
+   "France",
+   "United Kingdom",
+   "United States"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "How long is a marathon?",
+  "answer": "26.2 miles (42.2 km)",
+  "wrong": [
+   "13.1 miles (21.1 km)",
+   "20 miles (32.2 km)",
+   "30 miles (48.3 km)"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "What do ice hockey players hit with their sticks?",
+  "answer": "A puck",
+  "wrong": [
+   "A ball",
+   "A stone",
+   "A ring"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "Usain Bolt became famous in which sport?",
+  "answer": "Sprinting",
+  "wrong": [
+   "Swimming",
+   "Cycling",
+   "Football"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "Lewis Hamilton is famous for which sport?",
+  "answer": "Formula 1 motor racing",
+  "wrong": [
+   "Tennis",
+   "Golf",
+   "Cycling"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "How many holes are on a standard full golf course?",
+  "answer": "18",
+  "wrong": [
+   "9",
+   "12",
+   "21"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "How many players are in a cricket team?",
+  "answer": "11",
+  "wrong": [
+   "9",
+   "10",
+   "13"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "In chess, which piece can only move diagonally?",
+  "answer": "Bishop",
+  "wrong": [
+   "Rook",
+   "Knight",
+   "King"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "The Tour de France is a famous race in which sport?",
+  "answer": "Cycling",
+  "wrong": [
+   "Running",
+   "Rowing",
+   "Motor racing"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "In tennis, what word is used for a score of zero?",
+  "answer": "Love",
+  "wrong": [
+   "Nil",
+   "Duck",
+   "Zip"
+  ]
+ },
+ {
+  "category": "Sport",
+  "question": "In snooker, what is the maximum break usually possible?",
+  "answer": "147",
+  "wrong": [
+   "100",
+   "155",
+   "180"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "How many days are there in a leap year?",
+  "answer": "366",
+  "wrong": [
+   "364",
+   "365",
+   "367"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "How many colours are traditionally in a rainbow?",
+  "answer": "7",
+  "wrong": [
+   "5",
+   "6",
+   "8"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "How many sides does a hexagon have?",
+  "answer": "6",
+  "wrong": [
+   "5",
+   "7",
+   "8"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "Which country gives London a Christmas tree for Trafalgar Square every year?",
+  "answer": "Norway",
+  "wrong": [
+   "Sweden",
+   "Denmark",
+   "Finland"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "How many minutes are there in a day?",
+  "answer": "1,440",
+  "wrong": [
+   "1,240",
+   "1,400",
+   "1,600"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "Which reindeer has a very shiny red nose?",
+  "answer": "Rudolph",
+  "wrong": [
+   "Dasher",
+   "Comet",
+   "Blitzen"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "How many hours are there in a week?",
+  "answer": "168",
+  "wrong": [
+   "148",
+   "158",
+   "178"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "Which language has the most native speakers in the world?",
+  "answer": "Mandarin Chinese",
+  "wrong": [
+   "English",
+   "Spanish",
+   "Hindi"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "What is the name of the great bell in London's Elizabeth Tower?",
+  "answer": "Big Ben",
+  "wrong": [
+   "Great Tom",
+   "Big Bertha",
+   "Old Tom"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "What is the currency of Japan?",
+  "answer": "Yen",
+  "wrong": [
+   "Won",
+   "Yuan",
+   "Ringgit"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "Who painted the Mona Lisa?",
+  "answer": "Leonardo da Vinci",
+  "wrong": [
+   "Michelangelo",
+   "Pablo Picasso",
+   "Vincent van Gogh"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "Which month of the year has the fewest days?",
+  "answer": "February",
+  "wrong": [
+   "April",
+   "June",
+   "November"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "What number is represented by the Roman numeral X?",
+  "answer": "10",
+  "wrong": [
+   "5",
+   "50",
+   "100"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "Which of these is a primary colour in painting?",
+  "answer": "Blue",
+  "wrong": [
+   "Green",
+   "Orange",
+   "Purple"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "How many weeks are there in a year?",
+  "answer": "52",
+  "wrong": [
+   "48",
+   "50",
+   "54"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "Which famous ocean liner sank on its first voyage in 1912?",
+  "answer": "Titanic",
+  "wrong": [
+   "Lusitania",
+   "Britannic",
+   "Queen Mary"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "In which city is the Burj Khalifa skyscraper?",
+  "answer": "Dubai",
+  "wrong": [
+   "Abu Dhabi",
+   "Doha",
+   "Riyadh"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "In 'The Twelve Days of Christmas', what is given on the first day?",
+  "answer": "A partridge in a pear tree",
+  "wrong": [
+   "Two turtle doves",
+   "Five gold rings",
+   "Three French hens"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "What is 12 multiplied by 12?",
+  "answer": "144",
+  "wrong": [
+   "124",
+   "132",
+   "156"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "Who is usually credited with inventing the telephone?",
+  "answer": "Alexander Graham Bell",
+  "wrong": [
+   "Thomas Edison",
+   "Nikola Tesla",
+   "Guglielmo Marconi"
+  ]
+ },
+ {
+  "category": "General Knowledge",
+  "question": "Which country gave the Statue of Liberty to the United States?",
+  "answer": "France",
+  "wrong": [
+   "United Kingdom",
+   "Spain",
+   "Italy"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "How many strings does a standard guitar have?",
+  "answer": "6",
+  "wrong": [
+   "4",
+   "5",
+   "8"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which instrument usually has 88 keys?",
+  "answer": "Piano",
+  "wrong": [
+   "Organ",
+   "Accordion",
+   "Harpsichord"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "John, Paul, George and Ringo were members of which band?",
+  "answer": "The Beatles",
+  "wrong": [
+   "The Rolling Stones",
+   "Queen",
+   "Oasis"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Freddie Mercury was the lead singer of which band?",
+  "answer": "Queen",
+  "wrong": [
+   "Coldplay",
+   "U2",
+   "The Who"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Who sang the hit song 'Shake It Off'?",
+  "answer": "Taylor Swift",
+  "wrong": [
+   "Katy Perry",
+   "Ariana Grande",
+   "Dua Lipa"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which singer is known as the 'King of Pop'?",
+  "answer": "Michael Jackson",
+  "wrong": [
+   "Elvis Presley",
+   "Prince",
+   "Justin Bieber"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which singer-songwriter released albums called '+', 'x' and '÷'?",
+  "answer": "Ed Sheeran",
+  "wrong": [
+   "Lewis Capaldi",
+   "Sam Smith",
+   "Harry Styles"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Who sang 'All I Want for Christmas Is You'?",
+  "answer": "Mariah Carey",
+  "wrong": [
+   "Whitney Houston",
+   "Celine Dion",
+   "Ariana Grande"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which of these instruments is a woodwind instrument?",
+  "answer": "Flute",
+  "wrong": [
+   "Trumpet",
+   "Violin",
+   "Drum"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "How many musicians are in a quartet?",
+  "answer": "4",
+  "wrong": [
+   "3",
+   "5",
+   "6"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Harry Styles first became famous in which band?",
+  "answer": "One Direction",
+  "wrong": [
+   "Take That",
+   "The Wanted",
+   "JLS"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which K-pop group had a 2020 hit with 'Dynamite'?",
+  "answer": "BTS",
+  "wrong": [
+   "BLACKPINK",
+   "EXO",
+   "TWICE"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which brass instrument uses a slide to change notes?",
+  "answer": "Trombone",
+  "wrong": [
+   "Trumpet",
+   "Tuba",
+   "French horn"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which duo had a Christmas hit with 'Last Christmas'?",
+  "answer": "Wham!",
+  "wrong": [
+   "Pet Shop Boys",
+   "Eurythmics",
+   "Erasure"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which Disney film features the song 'Let It Go'?",
+  "answer": "Frozen",
+  "wrong": [
+   "Moana",
+   "Tangled",
+   "Encanto"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "How many lines are there on a standard music staff (stave)?",
+  "answer": "5",
+  "wrong": [
+   "4",
+   "6",
+   "7"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which Disney film features the song 'We Don't Talk About Bruno'?",
+  "answer": "Encanto",
+  "wrong": [
+   "Coco",
+   "Moana",
+   "Wish"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which instrument with pipes and pedals is often found in churches?",
+  "answer": "Organ",
+  "wrong": [
+   "Harp",
+   "Cello",
+   "Bagpipes"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "In which country was the singer Adele born?",
+  "answer": "England",
+  "wrong": [
+   "United States",
+   "Ireland",
+   "Australia"
+  ]
+ },
+ {
+  "category": "Music",
+  "question": "Which composer kept writing music after going deaf and wrote nine symphonies?",
+  "answer": "Ludwig van Beethoven",
+  "wrong": [
+   "Wolfgang Amadeus Mozart",
+   "Johann Sebastian Bach",
+   "Frédéric Chopin"
+  ]
+ }
+]

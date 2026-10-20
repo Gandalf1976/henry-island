@@ -1,0 +1,332 @@
+:root {
+  --ink: #2b2d42;
+  --wood: #9b6338;
+  --wood-dark: #5c321b;
+  --red: #e63946;
+  --green: #2f7d4f;
+  --snow: #f4f9fd;
+  --gold: #ffd34d;
+  font-family: "Nunito", "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+  color: var(--ink);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #3f8fc0;
+  overflow: hidden;
+}
+
+#hud {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: .4rem 1rem;
+  background: linear-gradient(#c1121fee, #a50f1aee);
+  color: #fff;
+  z-index: 5;
+  box-shadow: 0 2px 6px #0004;
+  border-bottom: 4px dashed #fff;
+}
+#hud h1 { margin: 0; font-size: 1.4rem; letter-spacing: .03em; }
+#hud-date { opacity: .9; }
+#hud-player { margin-left: auto; display: flex; gap: .6rem; align-items: center; }
+
+#help {
+  position: fixed;
+  bottom: .4rem; left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: .3rem .8rem;
+  background: #ffffffcc;
+  border-radius: 999px;
+  font-size: .85rem;
+  z-index: 4;
+  text-align: center;
+  max-width: 95vw;
+}
+
+#world { position: fixed; inset: 0; }
+#island { width: 100%; height: 100%; display: block; touch-action: manipulation; }
+#snow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* ---------- Island bits ---------- */
+
+.waves path { animation: bob 4s ease-in-out infinite; }
+.bob { animation: bob 2.4s ease-in-out infinite; }
+.bob.delay { animation-delay: .8s; }
+.santa .wave-arm, use.santa { transform-box: fill-box; }
+@keyframes bob { 50% { transform: translateY(-4px); } }
+
+.board-title { font-size: 22px; font-weight: 800; text-anchor: middle; fill: #2f7d4f; paint-order: stroke; stroke: #fff; stroke-width: 5px; }
+.board-empty { font-size: 18px; text-anchor: middle; fill: #5c321b; }
+.podium-number { font-size: 26px; font-weight: 900; text-anchor: middle; fill: #fff; paint-order: stroke; stroke: #0003; stroke-width: 3px; }
+.snowman-score { font-weight: 900; text-anchor: middle; fill: #c1121f; }
+.name-plate rect { fill: #5c321b; stroke: #fff; stroke-width: 2; }
+.name-plate text { font-size: 14px; font-weight: 700; fill: #fff; text-anchor: middle; }
+.name-plate.mine rect { fill: #c1121f; }
+
+.sign { cursor: pointer; }
+.sign:hover, .sign:focus { filter: drop-shadow(0 0 6px #fff); outline: none; }
+.sign-text { font-size: 17px; font-weight: 800; fill: #fff; text-anchor: middle; }
+.sign-badge { font-size: 13px; font-weight: 700; fill: #2f7d4f; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
+.closed-text { font-size: 18px; font-weight: 900; fill: #fff; text-anchor: middle; letter-spacing: .1em; }
+.sign.closed { opacity: .95; }
+
+.me { cursor: pointer; }
+.me:focus { outline: none; }
+.me .body { transition: transform .1s; }
+.me.walking .legs { animation: steps .25s linear infinite alternate; }
+.me-label { font-size: 15px; font-weight: 800; text-anchor: middle; fill: #2b2d42; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
+.me-prompt { font-size: 14px; font-weight: 700; text-anchor: middle; fill: #c1121f; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
+@keyframes steps { to { transform: translateY(-3px); } }
+
+.penguin .waddle { transform-box: fill-box; transform-origin: 50% 100%; }
+.penguin .waddle.walking { animation: waddle .4s ease-in-out infinite alternate; }
+@keyframes waddle { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+
+/* ---------- Buttons, cards and modals ---------- */
+
+.btn {
+  font: inherit;
+  font-weight: 700;
+  border: 0;
+  border-radius: 999px;
+  padding: .55rem 1.2rem;
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #1d4f31;
+}
+.btn:hover { filter: brightness(1.1); }
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #1d4f31; }
+.btn.small { padding: .3rem .8rem; font-size: .9rem; }
+.btn.primary { background: var(--red); box-shadow: 0 3px 0 #8d1c25; }
+#hud .btn { background: #fff; color: var(--red); box-shadow: none; }
+
+.muted { color: #6c757d; }
+.error { color: var(--red); min-height: 1.2em; font-weight: 700; }
+
+.card {
+  position: fixed;
+  z-index: 8;
+  width: min(320px, 92vw);
+  background: #fffaf0;
+  border: 4px solid var(--wood);
+  border-radius: 18px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 8px 24px #0005;
+  left: 50%; top: 30%;
+}
+.card h2 { margin: 0 0 .3rem; color: var(--red); }
+.card h3 { margin: .6rem 0 .3rem; font-size: 1rem; }
+.card ul { list-style: none; padding: 0; margin: 0 0 .8rem; }
+.card li { display: flex; justify-content: space-between; align-items: center; padding: .3rem 0; border-bottom: 1px dashed #d6c39f; gap: .5rem; }
+.score-line { margin: 0; }
+
+.close {
+  position: absolute;
+  top: .3rem; right: .5rem;
+  border: 0; background: none;
+  font-size: 1.7rem; line-height: 1;
+  cursor: pointer; color: inherit;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1d3557aa;
+  padding: 1rem;
+}
+.modal[hidden], .card[hidden], #toast[hidden] { display: none; }
+.modal-box {
+  position: relative;
+  background: var(--snow);
+  border-radius: 22px;
+  padding: 1.2rem 1.4rem;
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  box-shadow: 0 10px 30px #0006;
+  border: 6px solid #fff;
+}
+.welcome-box h2 { margin-top: 0; color: var(--red); }
+.welcome-box label { display: block; font-weight: 700; margin: .5rem 0; }
+.welcome-box input { font: inherit; width: 100%; padding: .5rem .7rem; border-radius: 12px; border: 2px solid #cdb48a; margin-top: .25rem; }
+fieldset { border: 0; padding: 0; margin: .5rem 0; }
+legend { font-weight: 700; margin-bottom: .3rem; }
+
+.avatar-grid, .player-grid { display: flex; flex-wrap: wrap; gap: .5rem; }
+.avatar-choice, .player-choice {
+  font: inherit;
+  display: flex; flex-direction: column; align-items: center;
+  border: 3px solid transparent;
+  border-radius: 14px;
+  background: #fff;
+  padding: .3rem .5rem;
+  cursor: pointer;
+  min-width: 76px;
+  box-shadow: 0 2px 5px #0002;
+}
+.avatar-choice[aria-pressed="true"], .avatar-choice:hover, .player-choice:hover { border-color: var(--red); }
+.player-choice span { font-weight: 700; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#toast {
+  position: fixed;
+  top: 4.2rem; left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 3px solid var(--green);
+  border-radius: 999px;
+  padding: .5rem 1.2rem;
+  font-weight: 700;
+  z-index: 20;
+  box-shadow: 0 4px 12px #0004;
+  max-width: 92vw;
+  text-align: center;
+}
+
+/* ---------- Games ---------- */
+
+.game-box { width: min(620px, 100%); text-align: center; }
+.game-header h2 { margin: 0; font-size: 1.8rem; }
+.game-header p { margin: .2rem 0 .6rem; }
+.game-message { min-height: 1.4em; font-weight: 700; margin: .4rem 0; }
+.finish-panel { margin-top: .8rem; padding: .8rem; border-radius: 16px; background: #ffffffd9; color: var(--ink); }
+.finish-score { font-size: 1.4rem; font-weight: 900; color: var(--red); margin: .2rem 0; }
+
+.timer { position: relative; height: 22px; border-radius: 999px; background: #ffffff88; overflow: hidden; margin: .3rem 0 .5rem; border: 2px solid #fff; }
+.timer-bar { height: 100%; background: linear-gradient(90deg, #6aaa64, #b5e48c); transition: width .1s linear; }
+.timer-bar.low { background: linear-gradient(90deg, #e63946, #ff8fab); }
+.timer-label { position: absolute; inset: 0; font-weight: 800; line-height: 18px; }
+
+/* Henry-Wordle: inside the cosy log lodge */
+.theme-wordle {
+  background:
+    repeating-linear-gradient(0deg, #9b6338 0 34px, #8a5530 34px 38px);
+  color: #fff;
+  border-color: #5c321b;
+}
+.theme-wordle .game-header h2 { text-shadow: 0 3px 0 #5c321b; }
+.theme-wordle .muted { color: #f6e2c8; }
+.wordle-grid { display: inline-grid; gap: 6px; margin: .3rem auto; padding: 10px; background: #5c321b; border-radius: 12px; }
+.wordle-row { display: grid; grid-template-columns: repeat(5, 52px); gap: 6px; }
+.tile {
+  width: 52px; height: 52px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem; font-weight: 900;
+  background: #fffaf0; color: var(--ink);
+  border: 3px solid #d6c39f;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+.tile.filled { border-color: #7a4b2a; }
+.tile.correct { background: #6aaa64; border-color: #6aaa64; color: #fff; }
+.tile.present { background: #c9b458; border-color: #c9b458; color: #fff; }
+.tile.absent { background: #e8e8e8; border-color: #d3d6da; color: #787c7e; }
+.wordle-row.shake { animation: shake .35s; }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.keyboard { margin-top: .5rem; }
+.kb-row { display: flex; justify-content: center; gap: 5px; margin-bottom: 5px; }
+.key {
+  font: inherit; font-weight: 800;
+  min-width: 34px; height: 46px; padding: 0 .4rem;
+  border: 0; border-radius: 6px;
+  background: #f6e2c8; color: var(--ink);
+  cursor: pointer;
+}
+.key.wide { min-width: 62px; font-size: .85rem; }
+.key.correct { background: #6aaa64; color: #fff; }
+.key.present { background: #c9b458; color: #fff; }
+.key.absent { background: #787c7e; color: #fff; }
+
+/* Henry-Lake: tiles floating on a winter lake */
+.theme-lake { background: linear-gradient(#e8f6fc, #bfe8f7); border-color: #4cc9f0; }
+.theme-lake .game-header h2 { color: #1d6fa5; }
+.lake-score { font-weight: 800; margin: .2rem 0; }
+.lake-water {
+  position: relative;
+  height: 300px;
+  border-radius: 50% / 40%;
+  background: radial-gradient(ellipse at 40% 35%, #7cc4e4, #2a7fb8);
+  border: 8px solid #fff;
+  box-shadow: inset 0 0 30px #0d3b66aa;
+  overflow: hidden;
+}
+.lily-pads { position: absolute; inset: 0 0 70px 0; }
+.lily-pad {
+  position: absolute;
+  min-width: 64px;
+  padding: .4rem .6rem;
+  border-radius: 50% 50% 50% 0;
+  background: radial-gradient(circle at 35% 35%, #8fd16b, #4f9d3a);
+  color: #fff;
+  font-weight: 800;
+  font-size: .9rem;
+  text-transform: uppercase;
+  text-shadow: 0 1px 1px #0006;
+  box-shadow: 0 3px 0 #2d6a22;
+}
+.lily-pad.golden { background: radial-gradient(circle at 35% 35%, #ffe08a, #e0a526); box-shadow: 0 3px 0 #a87b12; }
+.lily-pad.new { animation: pop .4s ease-out; }
+@keyframes pop { from { transform: scale(0); } 70% { transform: scale(1.2); } }
+.lake-tiles { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.lake-tile {
+  font: inherit; font-weight: 900; font-size: 1.4rem;
+  width: 44px; height: 44px;
+  border: 0; border-radius: 8px;
+  background: #fffaf0; color: var(--wood-dark);
+  box-shadow: 0 4px 0 #9b6338;
+  cursor: pointer;
+  animation: float 2s ease-in-out infinite;
+}
+.lake-tile.used { opacity: .25; }
+@keyframes float { 50% { transform: translateY(-5px); } }
+.lake-word { font-size: 2rem; font-weight: 900; letter-spacing: .15em; min-height: 2.6rem; margin-top: .4rem; color: #1d6fa5; }
+.lake-buttons { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }
+
+/* Henry-Quiz: Santa's workshop */
+.theme-quiz {
+  background: repeating-linear-gradient(45deg, #c1121f 0 24px, #d62828 24px 48px);
+  color: #fff;
+  border: 10px solid;
+  border-image: repeating-linear-gradient(45deg, #fff 0 12px, #e63946 12px 24px) 10;
+  border-radius: 0;
+}
+.theme-quiz .muted { color: #ffe0e3; }
+.theme-quiz .game-header h2 { text-shadow: 0 3px 0 #7a0c14; }
+.quiz-info { font-weight: 800; margin-bottom: .4rem; }
+.quiz-card { background: #fffaf0; color: var(--ink); border-radius: 18px; padding: 1rem; min-height: 200px; box-shadow: 0 4px 0 #7a0c14; }
+.quiz-category { display: inline-block; background: var(--green); color: #fff; border-radius: 999px; padding: .15rem .7rem; font-size: .85rem; font-weight: 700; }
+.quiz-question { margin: .6rem 0 .8rem; }
+.quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.quiz-option {
+  font: inherit; font-weight: 700;
+  padding: .7rem;
+  border-radius: 12px;
+  border: 3px solid #2f7d4f;
+  background: #fff; color: var(--ink);
+  cursor: pointer;
+}
+.quiz-option:hover:not(:disabled) { background: #e9f5ec; }
+.quiz-option.right { background: #6aaa64; border-color: #6aaa64; color: #fff; }
+.quiz-option.wrong { background: #e63946; border-color: #e63946; color: #fff; }
+
+@media (max-width: 600px) {
+  #hud h1 { font-size: 1.1rem; }
+  .wordle-row { grid-template-columns: repeat(5, 44px); }
+  .tile { width: 44px; height: 44px; font-size: 1.5rem; }
+  .key { min-width: 26px; padding: 0 .2rem; }
+  .key.wide { min-width: 48px; }
+  .quiz-options { grid-template-columns: 1fr; }
+  .lake-tile { width: 34px; height: 38px; font-size: 1.1rem; }
+}
