@@ -238,8 +238,8 @@ def update_game(game, action):
         error, extra = None, {}
         try:
             extra = action(state, now) or {}
-        except ValueError as exc:
-            error = str(exc)
+        except daily.GameError as exc:
+            error = exc.args[0] if exc.args else "That didn't work."
         db.execute(
             "UPDATE plays SET state = ?, score = ?, finished = ? WHERE id = ?",
             (json.dumps(state), state["score"], int(state["finished"]), row["id"]),

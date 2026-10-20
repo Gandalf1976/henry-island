@@ -4,7 +4,7 @@ import json
 import os
 from functools import lru_cache
 
-from .daily import daily_rng
+from .daily import GameError, daily_rng
 from .words import DATA_DIR
 
 GAME_ID = "quiz"
@@ -59,15 +59,15 @@ def time_left(state, now):
 def answer(state, index, choice, now, grace=2):
     """Answer question ``index`` with option ``choice``. Returns True if right."""
     if state["finished"]:
-        raise ValueError("The quiz is over.")
+        raise GameError("The quiz is over.")
     if now - state["started_at"] > TIME_LIMIT + grace:
         state["finished"] = True
-        raise ValueError("Time's up!")
+        raise GameError("Time's up!")
     if index != len(state["answers"]):
-        raise ValueError("That question has already been answered.")
+        raise GameError("That question has already been answered.")
     question = state["questions"][index]
     if not isinstance(choice, int) or not 0 <= choice < len(question["options"]):
-        raise ValueError("Please pick one of the answers.")
+        raise GameError("Please pick one of the answers.")
     correct = choice == question["answer"]
     state["answers"].append(choice)
     if correct:

@@ -3,7 +3,7 @@
 from collections import Counter
 from functools import lru_cache
 
-from .daily import daily_rng
+from .daily import GameError, daily_rng
 from .words import load_words
 
 GAME_ID = "lake"
@@ -64,19 +64,19 @@ def time_left(state, now):
 def submit_word(state, word, now, grace=2):
     """Try to add ``word``. Returns the points scored; raises ``ValueError``."""
     if state["finished"]:
-        raise ValueError("The game is over.")
+        raise GameError("The game is over.")
     if now - state["started_at"] > TIME_LIMIT + grace:
         state["finished"] = True
-        raise ValueError("Time's up!")
+        raise GameError("Time's up!")
     word = (word or "").strip().lower()
     if not word.isalpha() or len(word) < MIN_WORD_LENGTH:
-        raise ValueError(f"Words need at least {MIN_WORD_LENGTH} letters.")
+        raise GameError(f"Words need at least {MIN_WORD_LENGTH} letters.")
     if word in state["words"]:
-        raise ValueError("You already found that word.")
+        raise GameError("You already found that word.")
     if not can_make(word, state["letters"]):
-        raise ValueError("You can't make that word from these letters.")
+        raise GameError("You can't make that word from these letters.")
     if word not in dictionary():
-        raise ValueError("That's not in our dictionary.")
+        raise GameError("That's not in our dictionary.")
 
     points = WORD_POINTS
     if len(word) == len(state["target"]):

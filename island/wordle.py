@@ -3,7 +3,7 @@
 import random
 from functools import lru_cache
 
-from .daily import daily_rng
+from .daily import GameError, daily_rng
 from .words import load_words
 
 GAME_ID = "wordle"
@@ -72,12 +72,12 @@ def new_state(secret):
 def apply_guess(state, guess):
     """Apply a guess to a game state. Raises ``ValueError`` for bad guesses."""
     if state["finished"]:
-        raise ValueError("This game is already finished.")
+        raise GameError("This game is already finished.")
     guess = (guess or "").strip().lower()
     if len(guess) != WORD_LENGTH or not guess.isalpha():
-        raise ValueError(f"Guesses must be {WORD_LENGTH} letters.")
+        raise GameError(f"Guesses must be {WORD_LENGTH} letters.")
     if guess not in valid_guesses():
-        raise ValueError("Not in the word list.")
+        raise GameError("Not in the word list.")
 
     result = evaluate_guess(guess, state["secret"])
     state["guesses"].append({"word": guess, "result": result})
@@ -118,7 +118,7 @@ def play_cli():  # pragma: no cover - interactive helper
         guess = input(f"Guess ({remaining} left): ")
         try:
             apply_guess(state, guess)
-        except ValueError as error:
+        except GameError as error:
             print(error)
             continue
         last = state["guesses"][-1]

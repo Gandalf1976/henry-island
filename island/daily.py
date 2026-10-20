@@ -30,3 +30,7 @@ def daily_rng(game, date):
     """
     secret = os.environ.get("ISLAND_SECRET", "")
     return random.Random(f"henry-island:{secret}:{game}:{date}")
+
+
+class GameError(ValueError):
+    """A friendly message for the player, e.g. "Not in the word list."."""
