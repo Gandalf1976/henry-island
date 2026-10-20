@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1e3a8a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="description" content="Henry Island — Where magical things happen. Animal Crossing Christmas Island daily mini-games for the Henry family." />
+    <meta name="description" content="Henry Island — Where magical things happen. 3D Animal Crossing Christmas Island daily mini-games for the Henry family." />
     <title>Henry Island 🎄🏝️</title>
     <!-- Tailwind / Custom Styles -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,8 +19,7 @@
         -webkit-tap-highlight-color: transparent;
       }
       canvas {
-        image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
+        touch-action: none;
       }
       /* Custom scrollbars */
       ::-webkit-scrollbar {
@@ -43,28 +42,35 @@
   <body class="h-full w-full overflow-hidden flex flex-col bg-slate-900 text-slate-100">
     
     <!-- Top Island Navigation Bar -->
-    <header class="relative z-30 shrink-0 bg-gradient-to-r from-sky-950/90 via-blue-900/90 to-indigo-950/90 backdrop-blur-md border-b-2 border-sky-400/40 px-3 py-2 flex items-center justify-between shadow-lg">
+    <header class="relative z-30 shrink-0 bg-gradient-to-r from-sky-950/95 via-blue-900/95 to-indigo-950/95 backdrop-blur-md border-b-2 border-sky-400/40 px-2 sm:px-4 py-2 flex items-center justify-between shadow-lg">
       
       <!-- Brand & Date -->
       <div class="flex items-center gap-2">
         <span class="text-2xl sm:text-3xl animate-bounce">🎄</span>
         <div>
-          <h1 class="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5">
+          <h1 class="text-sm sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5">
             <span>Henry Island</span>
-            <span class="text-xs px-2 py-0.5 rounded-full bg-red-600/90 text-white font-extrabold border border-red-400 shadow-sm">Christmas</span>
+            <span class="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-red-600/90 text-white font-extrabold border border-red-400 shadow-sm">3D Winter</span>
           </h1>
-          <p id="island-date-display" class="text-[11px] sm:text-xs text-sky-200 font-semibold"></p>
+          <p id="island-date-display" class="text-[10px] sm:text-xs text-sky-200 font-semibold"></p>
         </div>
       </div>
 
       <!-- Action Controls -->
       <div class="flex items-center gap-1.5 sm:gap-2">
         
-        <!-- Active Gardener Avatar Badge -->
-        <button id="header-avatar-btn" class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-amber-400/70 rounded-full px-2.5 py-1 text-xs font-bold text-white shadow-sm transition transform active:scale-95">
+        <!-- Active Device Player Profile Badge -->
+        <button id="header-avatar-btn" class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-amber-400/70 rounded-full px-2.5 py-1 text-xs font-bold text-white shadow-sm transition transform active:scale-95" title="Click to view daily status & your snowman">
           <span id="header-avatar-emoji" class="text-lg">🎅</span>
           <span id="header-avatar-name" class="max-w-[70px] sm:max-w-[100px] truncate">Player</span>
           <span class="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-900 font-black text-[10px]" id="header-avatar-score">0 pts</span>
+        </button>
+
+        <!-- Messages / Bulletin Board Button with Unread Badge -->
+        <button id="header-messages-btn" title="Family Bulletin Board" class="flex items-center gap-1 bg-amber-600/90 hover:bg-amber-500 text-amber-50 font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-amber-400 transition transform active:scale-95">
+          <span>💬</span>
+          <span class="hidden sm:inline">Messages</span>
+          <span id="header-unread-badge" class="px-1.5 py-0.2 bg-red-500 text-white text-[10px] font-black rounded-full hidden">0</span>
         </button>
 
         <!-- Podium / Leaderboard Button -->
@@ -73,49 +79,61 @@
           <span class="hidden sm:inline">Podium</span>
         </button>
 
+        <!-- Manage Family Members Button -->
+        <button id="header-manage-btn" title="Manage Family Members" class="flex items-center gap-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-bold px-2 py-1 rounded-full text-xs border border-slate-600 transition transform active:scale-95">
+          <span>👥</span>
+        </button>
+
         <!-- Sound Toggle -->
-        <button id="header-sound-btn" title="Toggle Music & Sound Effects" class="w-8 h-8 rounded-full bg-sky-800/80 hover:bg-sky-700 active:bg-sky-600 text-white flex items-center justify-center text-sm border border-sky-400/50 shadow transition transform active:scale-95">
+        <button id="header-sound-btn" title="Toggle Sound" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-sky-800/80 hover:bg-sky-700 active:bg-sky-600 text-white flex items-center justify-center text-xs sm:text-sm border border-sky-400/50 shadow transition transform active:scale-95">
           🔊
         </button>
 
       </div>
     </header>
 
-    <!-- Main Canvas Viewport -->
+    <!-- Main 3D Viewport -->
     <main class="relative flex-1 w-full h-full overflow-hidden bg-sky-950">
-      <canvas id="island-canvas" class="w-full h-full block cursor-pointer"></canvas>
+      <div id="island-viewport" class="w-full h-full block"></div>
 
       <!-- Fast Navigation Quick-Travel Dock (Bottom-Center) -->
-      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-slate-900/85 backdrop-blur-md px-3 py-1.5 rounded-2xl border-2 border-sky-400/60 shadow-2xl">
-        <button id="travel-wordle" class="px-2.5 py-1 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-emerald-500 transition">
+      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 sm:gap-2 bg-slate-900/90 backdrop-blur-md px-2.5 sm:px-3 py-1.5 rounded-2xl border-2 border-sky-400/60 shadow-2xl max-w-[95vw] overflow-x-auto">
+        <button id="travel-wordle" class="px-2 sm:px-2.5 py-1 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-emerald-500 transition shrink-0">
           <span>🟩</span>
-          <span class="hidden sm:inline">Wordle Cottage</span>
+          <span class="hidden sm:inline">Wordle</span>
         </button>
 
-        <button id="travel-town" class="px-2.5 py-1 rounded-xl bg-amber-600/80 hover:bg-amber-500 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-amber-400 transition">
+        <button id="travel-town" class="px-2 sm:px-2.5 py-1 rounded-xl bg-amber-600/80 hover:bg-amber-500 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-amber-400 transition shrink-0">
           <span>⛄</span>
-          <span>Town Square</span>
+          <span>Podium</span>
         </button>
 
-        <button id="travel-lake" class="px-2.5 py-1 rounded-xl bg-sky-700/80 hover:bg-sky-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-sky-400 transition">
+        <button id="travel-board" class="px-2 sm:px-2.5 py-1 rounded-xl bg-amber-800/80 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-amber-500 transition shrink-0">
+          <span>📌</span>
+          <span class="hidden sm:inline">Board</span>
+        </button>
+
+        <button id="travel-lake" class="px-2 sm:px-2.5 py-1 rounded-xl bg-sky-700/80 hover:bg-sky-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-sky-400 transition shrink-0">
           <span>🪷</span>
-          <span class="hidden sm:inline">Frozen Lake</span>
+          <span class="hidden sm:inline">Lake</span>
         </button>
 
-        <button id="travel-quiz" class="px-2.5 py-1 rounded-xl bg-indigo-800/80 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-indigo-500 transition">
+        <button id="travel-quiz" class="px-2 sm:px-2.5 py-1 rounded-xl bg-indigo-800/80 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-indigo-500 transition shrink-0">
           <span>🧠</span>
-          <span class="hidden sm:inline">Quiz Lodge</span>
+          <span class="hidden sm:inline">Quiz</span>
         </button>
       </div>
 
       <!-- Virtual Touch Joystick (Bottom Left, visible on mobile / touch) -->
-      <div id="joystick-container" class="absolute bottom-5 left-5 z-20 hidden sm:block opacity-90 hover:opacity-100 transition-opacity"></div>
+      <div id="joystick-container" class="absolute bottom-5 left-5 z-20 hidden opacity-90 hover:opacity-100 transition-opacity"></div>
 
       <!-- Controls Guidance / Tutorial Pill -->
       <div class="absolute top-3 left-3 z-20 pointer-events-none hidden md:flex items-center gap-2 bg-slate-900/70 backdrop-blur-sm px-3 py-1 rounded-xl border border-white/20 text-xs text-sky-200">
-        <span>🎮 WASD / Arrows / Click to Walk</span>
+        <span>🎮 WASD / Arrows to Walk</span>
         <span>•</span>
-        <span>Tap Avatar for Daily Status</span>
+        <span>Space to Interact</span>
+        <span>•</span>
+        <span>Live Cloud Sync 🟢</span>
       </div>
 
     </main>

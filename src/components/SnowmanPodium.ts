@@ -17,72 +17,78 @@ export class SnowmanPodiumModal {
     const leaderboard = familyStore.getLeaderboard();
 
     this.container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-3 overflow-y-auto">
-        <div class="relative w-full max-w-lg bg-gradient-to-b from-sky-50 to-white rounded-3xl shadow-2xl border-4 border-amber-400 p-5 flex flex-col items-center">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 overflow-y-auto animate-fadeIn">
+        <div class="relative w-full max-w-xl bg-gradient-to-b from-slate-900 to-indigo-950 text-white rounded-3xl shadow-2xl border-4 border-amber-400/80 p-5 sm:p-6 flex flex-col items-center max-h-[92vh]">
           
           <!-- Close button -->
-          <button id="close-podium-btn" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center transition">✕</button>
+          <button id="close-podium-btn" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center transition">✕</button>
 
           <!-- Title -->
           <div class="text-center mb-3">
             <div class="text-3xl mb-1">⛄ 🏆 🎄</div>
-            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Henry Island Snowman Podium</h2>
-            <p class="text-xs text-slate-600 font-semibold">Larger Snowman = Higher Daily Accumulated Score!</p>
+            <h2 class="text-2xl sm:text-3xl font-black text-amber-300 tracking-tight">Henry Island Leaderboard</h2>
+            <p class="text-xs sm:text-sm text-slate-300 font-medium">Ranked by Daily Average Score (Total Points ÷ Days Played)</p>
           </div>
 
           <!-- Interactive Podium Canvas -->
-          <div class="w-full bg-gradient-to-b from-sky-100 to-sky-200 rounded-2xl p-2 border-2 border-sky-300 shadow-inner flex justify-center mb-4">
-            <canvas id="podium-stage-canvas" width="440" height="170" class="w-full max-w-md"></canvas>
+          <div class="w-full bg-gradient-to-b from-indigo-950/90 to-slate-900/90 rounded-2xl p-2.5 border-2 border-indigo-700/60 shadow-inner flex justify-center mb-4">
+            <canvas id="podium-stage-canvas" width="460" height="180" class="w-full max-w-lg"></canvas>
           </div>
 
           <!-- Full Family Roster Scoreboard -->
           <div class="w-full">
-            <h4 class="font-extrabold text-xs uppercase tracking-wider text-slate-500 mb-2">All Island Gardeners</h4>
+            <div class="flex justify-between items-center mb-2 px-1">
+              <h4 class="font-extrabold text-xs uppercase tracking-wider text-slate-400">All Family Members</h4>
+              <span class="text-[11px] text-emerald-400 font-semibold">Live Real-time Sync 🟢</span>
+            </div>
             
             <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
-              ${leaderboard
-                .map(entry => {
-                  const av = AVATAR_ROSTER.find(a => a.id === entry.player.avatarId) || AVATAR_ROSTER[0];
-                  const rankMedal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`;
-                  const rankBg =
-                    entry.rank === 1
-                      ? 'bg-amber-100/90 border-amber-300'
-                      : entry.rank === 2
-                      ? 'bg-slate-100 border-slate-300'
-                      : entry.rank === 3
-                      ? 'bg-amber-50 border-amber-200'
-                      : 'bg-white border-slate-200';
+              ${leaderboard.map(entry => {
+                const av = AVATAR_ROSTER.find(a => a.id === entry.player.avatarId) || AVATAR_ROSTER[0];
+                const rankMedal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`;
+                const rankBg =
+                  entry.rank === 1
+                    ? 'bg-amber-500/20 border-amber-400/80'
+                    : entry.rank === 2
+                    ? 'bg-slate-800/80 border-slate-600'
+                    : entry.rank === 3
+                    ? 'bg-amber-900/30 border-amber-700/60'
+                    : 'bg-slate-900/60 border-slate-800';
 
-                  return `
-                  <div class="p-2.5 rounded-xl border flex items-center justify-between ${rankBg} shadow-sm">
+                return `
+                  <div class="p-3 rounded-2xl border flex items-center justify-between ${rankBg} shadow-md">
                     <div class="flex items-center gap-3">
                       <span class="text-lg font-black w-6 text-center">${rankMedal}</span>
-                      <span class="text-2xl">${av.emoji}</span>
+                      <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl border border-white/20 shadow-inner" style="background-color: ${av.color}">
+                        ${av.emoji}
+                      </div>
                       <div>
-                        <div class="font-black text-sm text-slate-900">${entry.player.name}</div>
-                        <div class="text-[11px] text-slate-500 flex items-center gap-2">
-                          <span>🔥 ${entry.player.streak}d streak</span>
+                        <div class="font-black text-sm text-white">${entry.player.name}</div>
+                        <div class="text-[11px] text-slate-400 flex items-center gap-2">
+                          <span class="text-amber-300">Today: <strong>${entry.stats.todayScore} pts</strong></span>
                           <span>•</span>
-                          <span>Last: ${entry.player.lastPlayedDate || 'Never'}</span>
+                          <span>${entry.stats.daysPlayed}d played</span>
+                          <span>•</span>
+                          <span>Total: ${entry.stats.cumulativeScore}</span>
                         </div>
                       </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    
+                    <div class="flex items-center gap-3">
                       <div class="text-right">
-                        <div class="font-black text-base text-emerald-700">${entry.player.totalScore} pts</div>
-                        <div class="text-[10px] text-slate-400 font-bold">Accumulated</div>
+                        <div class="font-black text-base text-emerald-400">${entry.stats.averageScore} <span class="text-[10px] text-emerald-300/80">pts/day</span></div>
+                        <div class="text-[10px] text-slate-400 font-bold uppercase">Average ⭐</div>
                       </div>
                       <canvas data-player-id="${entry.player.id}" class="row-snowman-canvas" width="38" height="48"></canvas>
                     </div>
                   </div>
                 `;
-                })
-                .join('')}
+              }).join('')}
             </div>
           </div>
 
           <!-- Dismiss button -->
-          <button id="podium-dismiss-btn" class="mt-4 w-full py-2.5 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-slate-900 font-black rounded-xl shadow-md transition">
+          <button id="podium-dismiss-btn" class="mt-4 w-full py-3 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-slate-950 font-black rounded-2xl shadow-lg transition transform active:scale-98">
             Continue Exploring Island ▶
           </button>
 
@@ -95,42 +101,44 @@ export class SnowmanPodiumModal {
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.clearRect(0, 0, 440, 170);
+        ctx.clearRect(0, 0, 460, 180);
 
         // Pedestal blocks
         const slots = [
-          { rank: 2, label: '2nd', x: 120, y: 155, h: 48, color: '#94a3b8' },
-          { rank: 1, label: '1st', x: 220, y: 155, h: 72, color: '#f59e0b' },
-          { rank: 3, label: '3rd', x: 320, y: 155, h: 32, color: '#b45309' }
+          { rank: 2, label: '2nd', x: 120, y: 165, h: 50, color: '#64748b' },
+          { rank: 1, label: '1st', x: 230, y: 165, h: 76, color: '#f59e0b' },
+          { rank: 3, label: '3rd', x: 340, y: 165, h: 36, color: '#92400e' }
         ];
 
         slots.forEach(slot => {
-          // Pedestal
+          // Pedestal box
           ctx.fillStyle = slot.color;
-          ctx.fillRect(slot.x - 38, slot.y - slot.h, 76, slot.h);
-          ctx.strokeStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.roundRect(slot.x - 42, slot.y - slot.h, 84, slot.h, [8, 8, 0, 0]);
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff44';
           ctx.lineWidth = 2;
-          ctx.strokeRect(slot.x - 38, slot.y - slot.h, 76, slot.h);
+          ctx.stroke();
 
           // Label
           ctx.fillStyle = '#ffffff';
           ctx.font = 'bold 16px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(slot.label, slot.x, slot.y - slot.h * 0.4);
+          ctx.fillText(slot.label, slot.x, slot.y - slot.h * 0.45);
 
           // Find player
           const entry = leaderboard.find(l => l.rank === slot.rank);
           if (entry) {
             drawSnowman(ctx, {
-              score: entry.player.totalScore,
+              score: Math.round(entry.stats.averageScore * 10),
               x: slot.x,
               y: slot.y - slot.h - 10,
               scale: 0.95
             });
 
             // Name
-            ctx.fillStyle = '#0f172a';
-            ctx.font = 'bold 12px sans-serif';
+            ctx.fillStyle = '#fef08a';
+            ctx.font = 'bold 13px sans-serif';
             ctx.fillText(entry.player.name, slot.x, slot.y + 12);
           }
         });
@@ -140,12 +148,12 @@ export class SnowmanPodiumModal {
     // Render row mini-snowmen
     this.container.querySelectorAll('.row-snowman-canvas').forEach(c => {
       const pId = c.getAttribute('data-player-id');
-      const player = leaderboard.find(l => l.player.id === pId)?.player;
-      if (player) {
+      const entry = leaderboard.find(l => l.player.id === pId);
+      if (entry) {
         const rowCtx = (c as HTMLCanvasElement).getContext('2d');
         if (rowCtx) {
           drawSnowman(rowCtx, {
-            score: player.totalScore,
+            score: Math.round(entry.stats.averageScore * 10),
             x: 19,
             y: 40,
             scale: 0.45

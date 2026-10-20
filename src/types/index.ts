@@ -27,6 +27,22 @@ export interface PlayerProfile {
   };
 }
 
+export interface PlayerScoreStats {
+  todayScore: number;
+  cumulativeScore: number;
+  daysPlayed: number;
+  averageScore: number;
+}
+
+export interface BulletinMessage {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarId: string;
+  content: string;
+  createdAt: string; // ISO string
+}
+
 export interface DailyChallengeInfo {
   dateKey: string;
   wordleSecret: string;

@@ -1,13 +1,24 @@
 import { AVATAR_ROSTER, DEFAULT_FAMILY_MEMBERS } from '../data/avatars';
-import { GameType, PlayerProfile } from '../types';
+import { BulletinMessage, GameType, PlayerProfile, PlayerScoreStats } from '../types';
 import { getTodayDateKey } from '../utils/dailyClock';
 
 const STORAGE_KEY = 'henry_island_family_data_v1';
 const ACTIVE_PLAYER_KEY = 'henry_island_active_player_id';
+const DEVICE_LOCK_KEY = 'henry_island_device_player_id';
+const MESSAGES_KEY = 'henry_island_bulletin_messages_v1';
+const LAST_READ_MSG_KEY = 'henry_island_last_read_msg_ts';
+
+export interface LeaderboardEntry {
+  rank: number;
+  player: PlayerProfile;
+  stats: PlayerScoreStats;
+  isPodium: boolean;
+}
 
 class FamilyStore {
   private players: PlayerProfile[] = [];
   private activePlayerId: string = '';
+  private messages: BulletinMessage[] = [];
   private listeners: (() => void)[] = [];
 
   constructor() {
@@ -21,12 +32,13 @@ class FamilyStore {
     };
   }
 
-  private notify(): void {
+  public notify(): void {
     this.save();
     this.listeners.forEach(fn => fn());
   }
 
   private load(): void {
+    // 1. Load players
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -51,11 +63,43 @@ class FamilyStore {
       }));
     }
 
+    // 2. Resolve active player (prioritize device lock)
+    const lockedId = localStorage.getItem(DEVICE_LOCK_KEY);
     const savedActiveId = localStorage.getItem(ACTIVE_PLAYER_KEY);
-    if (savedActiveId && this.players.some(p => p.id === savedActiveId)) {
+
+    if (lockedId && this.players.some(p => p.id === lockedId)) {
+      this.activePlayerId = lockedId;
+    } else if (savedActiveId && this.players.some(p => p.id === savedActiveId)) {
       this.activePlayerId = savedActiveId;
     } else {
       this.activePlayerId = this.players[0].id;
+    }
+
+    // 3. Load bulletin messages
+    try {
+      const rawMsgs = localStorage.getItem(MESSAGES_KEY);
+      if (rawMsgs) {
+        const parsedMsgs = JSON.parse(rawMsgs);
+        if (Array.isArray(parsedMsgs)) {
+          this.messages = parsedMsgs;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load bulletin messages:', e);
+    }
+
+    // Default sample holiday welcome message if empty
+    if (this.messages.length === 0) {
+      this.messages = [
+        {
+          id: 'welcome_msg_1',
+          authorId: 'player_1',
+          authorName: 'Santa Explorer',
+          authorAvatarId: 'santa',
+          content: '🎄 Welcome to Henry Island! Check the daily games and leave a message on the board! 🎅❄️',
+          createdAt: new Date().toISOString()
+        }
+      ];
     }
   }
 
@@ -63,10 +107,41 @@ class FamilyStore {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.players));
       localStorage.setItem(ACTIVE_PLAYER_KEY, this.activePlayerId);
+      localStorage.setItem(MESSAGES_KEY, JSON.stringify(this.messages));
     } catch (e) {
       console.error('Failed to save to localStorage:', e);
     }
   }
+
+  // --- Device Identity Locking ---
+
+  public isDeviceLocked(): boolean {
+    const lockedId = localStorage.getItem(DEVICE_LOCK_KEY);
+    return Boolean(lockedId && this.players.some(p => p.id === lockedId));
+  }
+
+  public getLockedPlayerId(): string | null {
+    const lockedId = localStorage.getItem(DEVICE_LOCK_KEY);
+    if (lockedId && this.players.some(p => p.id === lockedId)) {
+      return lockedId;
+    }
+    return null;
+  }
+
+  public lockDeviceToPlayer(playerId: string): void {
+    if (this.players.some(p => p.id === playerId)) {
+      localStorage.setItem(DEVICE_LOCK_KEY, playerId);
+      this.activePlayerId = playerId;
+      this.notify();
+    }
+  }
+
+  public unlockDevice(): void {
+    localStorage.removeItem(DEVICE_LOCK_KEY);
+    this.notify();
+  }
+
+  // --- Player Management ---
 
   public getPlayers(): PlayerProfile[] {
     return [...this.players];
@@ -75,7 +150,15 @@ class FamilyStore {
   public getActivePlayer(): PlayerProfile {
     const found = this.players.find(p => p.id === this.activePlayerId);
     if (found) return found;
-    return this.players[0];
+    return this.players[0] || {
+      id: 'player_fallback',
+      name: 'Islander',
+      avatarId: 'santa',
+      totalScore: 0,
+      streak: 0,
+      lastPlayedDate: '',
+      history: {}
+    };
   }
 
   public setActivePlayerId(id: string): void {
@@ -88,7 +171,7 @@ class FamilyStore {
   public addPlayer(name: string, avatarId: string): PlayerProfile {
     const newPlayer: PlayerProfile = {
       id: 'player_' + Date.now(),
-      name: name.trim() || 'Gardener',
+      name: name.trim() || 'New Islander',
       avatarId: AVATAR_ROSTER.some(a => a.id === avatarId) ? avatarId : AVATAR_ROSTER[0].id,
       totalScore: 0,
       streak: 0,
@@ -101,42 +184,110 @@ class FamilyStore {
     return newPlayer;
   }
 
-  public updatePlayerAvatar(playerId: string, avatarId: string): void {
+  public updatePlayer(playerId: string, name: string, avatarId: string): boolean {
     const player = this.players.find(p => p.id === playerId);
-    if (player && AVATAR_ROSTER.some(a => a.id === avatarId)) {
-      player.avatarId = avatarId;
-      this.notify();
-    }
+    if (!player) return false;
+    if (name.trim()) player.name = name.trim();
+    if (AVATAR_ROSTER.some(a => a.id === avatarId)) player.avatarId = avatarId;
+    this.notify();
+    return true;
   }
 
-  public updatePlayerName(playerId: string, newName: string): void {
-    const player = this.players.find(p => p.id === playerId);
-    if (player && newName.trim()) {
-      player.name = newName.trim();
-      this.notify();
+  public deletePlayer(playerId: string): boolean {
+    if (this.players.length <= 1) return false; // keep at least 1 player
+    const index = this.players.findIndex(p => p.id === playerId);
+    if (index === -1) return false;
+    this.players.splice(index, 1);
+    if (this.activePlayerId === playerId) {
+      this.activePlayerId = this.players[0].id;
+      if (localStorage.getItem(DEVICE_LOCK_KEY) === playerId) {
+        localStorage.removeItem(DEVICE_LOCK_KEY);
+      }
     }
+    this.notify();
+    return true;
   }
+
+  // --- Score Statistics & Leaderboard ---
+
+  public getPlayerScoreStats(player: PlayerProfile, dateKey = getTodayDateKey()): PlayerScoreStats {
+    const todayRecord = player.history?.[dateKey];
+    const todayScore = todayRecord ? (todayRecord.totalDayScore || 0) : 0;
+
+    let daysPlayed = 0;
+    let cumulativeScore = 0;
+
+    const dates = Object.keys(player.history || {});
+    for (const d of dates) {
+      const rec = player.history[d];
+      if (rec && ((rec.completedGames && rec.completedGames.length > 0) || (rec.totalDayScore || 0) > 0)) {
+        daysPlayed += 1;
+        cumulativeScore += rec.totalDayScore || 0;
+      }
+    }
+
+    // Fallback if legacy player has totalScore but empty history
+    if (cumulativeScore === 0 && player.totalScore > 0) {
+      cumulativeScore = player.totalScore;
+      daysPlayed = 1;
+    }
+
+    const averageScore = daysPlayed > 0 ? Number((cumulativeScore / daysPlayed).toFixed(1)) : 0;
+
+    return {
+      todayScore,
+      cumulativeScore,
+      daysPlayed,
+      averageScore
+    };
+  }
+
+  public getLeaderboard(dateKey = getTodayDateKey()): LeaderboardEntry[] {
+    const list = this.players.map(p => ({
+      player: p,
+      stats: this.getPlayerScoreStats(p, dateKey)
+    }));
+
+    // Sort primarily by average score descending, tie break by cumulativeScore
+    list.sort((a, b) => {
+      if (b.stats.averageScore !== a.stats.averageScore) {
+        return b.stats.averageScore - a.stats.averageScore;
+      }
+      return b.stats.cumulativeScore - a.stats.cumulativeScore;
+    });
+
+    return list.map((item, idx) => ({
+      rank: idx + 1,
+      player: item.player,
+      stats: item.stats,
+      isPodium: idx < 3
+    }));
+  }
+
+  // --- Game Status & Daily Logic ---
 
   public isGameCompletedToday(playerId: string, gameType: GameType, dateKey = getTodayDateKey()): boolean {
     const player = this.players.find(p => p.id === playerId);
     if (!player) return false;
-    const dayRecord = player.history[dateKey];
+    const dayRecord = player.history?.[dateKey];
     if (!dayRecord) return false;
-    return dayRecord.completedGames.includes(gameType);
+    return dayRecord.completedGames?.includes(gameType) ?? false;
   }
 
   public getUnplayedGamesToday(playerId: string, dateKey = getTodayDateKey()): GameType[] {
     const allGames: GameType[] = ['wordle', 'lake', 'quiz'];
     const player = this.players.find(p => p.id === playerId);
     if (!player) return allGames;
-    const dayRecord = player.history[dateKey];
+    const dayRecord = player.history?.[dateKey];
     if (!dayRecord) return allGames;
-    return allGames.filter(g => !dayRecord.completedGames.includes(g));
+    return allGames.filter(g => !dayRecord.completedGames?.includes(g));
   }
 
   public recordGameScore(playerId: string, gameType: GameType, score: number, dateKey = getTodayDateKey()): boolean {
     const player = this.players.find(p => p.id === playerId);
     if (!player) return false;
+
+    if (!player.history) player.history = {};
 
     if (!player.history[dateKey]) {
       player.history[dateKey] = {
@@ -147,13 +298,12 @@ class FamilyStore {
 
     const dayRecord = player.history[dateKey];
     if (dayRecord.completedGames.includes(gameType)) {
-      // Already completed today
-      return false;
+      return false; // Already played today
     }
 
     dayRecord.completedGames.push(gameType);
     dayRecord.totalDayScore += score;
-    player.totalScore += score;
+    player.totalScore = (player.totalScore || 0) + score;
 
     if (gameType === 'wordle') dayRecord.wordleScore = score;
     if (gameType === 'lake') dayRecord.lakeScore = score;
@@ -161,17 +311,13 @@ class FamilyStore {
 
     // Update streak logic
     if (player.lastPlayedDate !== dateKey) {
-      // Check if lastPlayedDate was yesterday
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayKey = getTodayDateKey(yesterday);
 
       if (player.lastPlayedDate === yesterdayKey) {
-        player.streak += 1;
-      } else if (!player.lastPlayedDate) {
-        player.streak = 1;
+        player.streak = (player.streak || 0) + 1;
       } else {
-        // missed day, reset streak to 1
         player.streak = 1;
       }
       player.lastPlayedDate = dateKey;
@@ -181,20 +327,131 @@ class FamilyStore {
     return true;
   }
 
-  public getLeaderboard(): { rank: number; player: PlayerProfile; isPodium: boolean }[] {
-    const sorted = [...this.players].sort((a, b) => b.totalScore - a.totalScore);
-    return sorted.map((p, idx) => ({
-      rank: idx + 1,
-      player: p,
-      isPodium: idx < 3
-    }));
+  // --- Bulletin Board / Message Board ---
+
+  public getMessages(): BulletinMessage[] {
+    return [...this.messages].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
+
+  public postMessage(content: string, authorPlayer?: PlayerProfile): BulletinMessage {
+    const author = authorPlayer || this.getActivePlayer();
+    const newMsg: BulletinMessage = {
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      authorId: author.id,
+      authorName: author.name,
+      authorAvatarId: author.avatarId,
+      content: content.trim(),
+      createdAt: new Date().toISOString()
+    };
+    this.messages.unshift(newMsg);
+    // Keep max 50 recent messages
+    if (this.messages.length > 50) {
+      this.messages = this.messages.slice(0, 50);
+    }
+    this.markMessagesAsRead();
+    this.notify();
+    return newMsg;
+  }
+
+  public getUnreadMessageCount(): number {
+    const lastReadTs = Number(localStorage.getItem(LAST_READ_MSG_KEY) || '0');
+    return this.messages.filter(m => new Date(m.createdAt).getTime() > lastReadTs).length;
+  }
+
+  public markMessagesAsRead(): void {
+    localStorage.setItem(LAST_READ_MSG_KEY, String(Date.now()));
+  }
+
+  // --- Remote Reconcile / Live Cloud Merge ---
+
+  public mergeRemoteData(remotePlayers?: PlayerProfile[], remoteMessages?: BulletinMessage[]): boolean {
+    let changed = false;
+
+    // 1. Merge players
+    if (Array.isArray(remotePlayers) && remotePlayers.length > 0) {
+      for (const remoteP of remotePlayers) {
+        const localP = this.players.find(p => p.id === remoteP.id);
+        if (!localP) {
+          // New player from another device!
+          this.players.push(remoteP);
+          changed = true;
+        } else {
+          // Update player info if remote has higher score or more history
+          if (remoteP.name && remoteP.name !== localP.name) {
+            localP.name = remoteP.name;
+            changed = true;
+          }
+          if (remoteP.avatarId && remoteP.avatarId !== localP.avatarId) {
+            localP.avatarId = remoteP.avatarId;
+            changed = true;
+          }
+          if ((remoteP.totalScore || 0) > (localP.totalScore || 0)) {
+            localP.totalScore = remoteP.totalScore;
+            changed = true;
+          }
+          if ((remoteP.streak || 0) > (localP.streak || 0)) {
+            localP.streak = remoteP.streak;
+            changed = true;
+          }
+
+          // Deep merge history
+          if (remoteP.history) {
+            if (!localP.history) localP.history = {};
+            for (const dateKey of Object.keys(remoteP.history)) {
+              const remoteDay = remoteP.history[dateKey];
+              const localDay = localP.history[dateKey];
+              if (!localDay) {
+                localP.history[dateKey] = remoteDay;
+                changed = true;
+              } else {
+                // Merge completed games
+                for (const g of remoteDay.completedGames || []) {
+                  if (!localDay.completedGames.includes(g)) {
+                    localDay.completedGames.push(g);
+                    changed = true;
+                  }
+                }
+                if ((remoteDay.totalDayScore || 0) > (localDay.totalDayScore || 0)) {
+                  localDay.totalDayScore = remoteDay.totalDayScore;
+                  changed = true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Merge messages
+    if (Array.isArray(remoteMessages) && remoteMessages.length > 0) {
+      for (const rMsg of remoteMessages) {
+        if (!this.messages.some(m => m.id === rMsg.id)) {
+          this.messages.push(rMsg);
+          changed = true;
+        }
+      }
+      this.messages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      if (this.messages.length > 50) {
+        this.messages = this.messages.slice(0, 50);
+      }
+    }
+
+    if (changed) {
+      this.save();
+      this.listeners.forEach(fn => fn());
+    }
+
+    return changed;
+  }
+
+  // --- Export / Import JSON Fallback ---
 
   public exportDataJson(): string {
     return JSON.stringify({
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
-      players: this.players
+      players: this.players,
+      messages: this.messages
     }, null, 2);
   }
 
@@ -203,6 +460,9 @@ class FamilyStore {
       const parsed = JSON.parse(jsonString);
       if (parsed && Array.isArray(parsed.players) && parsed.players.length > 0) {
         this.players = parsed.players;
+        if (Array.isArray(parsed.messages)) {
+          this.messages = parsed.messages;
+        }
         if (!this.players.some(p => p.id === this.activePlayerId)) {
           this.activePlayerId = this.players[0].id;
         }

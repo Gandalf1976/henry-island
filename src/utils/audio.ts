@@ -242,3 +242,35 @@ class AudioManager {
 }
 
 export const soundAudio = new AudioManager();
+
+export type SoundType = 'click' | 'step' | 'jingle' | 'correct' | 'wrong' | 'victory' | 'closed' | 'closedSign' | 'snowStep' | 'buttonClick';
+
+export function playSound(type: SoundType): void {
+  switch (type) {
+    case 'click':
+    case 'buttonClick':
+      soundAudio.playButtonClick();
+      break;
+    case 'step':
+    case 'snowStep':
+      soundAudio.playSnowStep();
+      break;
+    case 'jingle':
+      soundAudio.playJingle();
+      break;
+    case 'correct':
+      soundAudio.playCorrect();
+      break;
+    case 'wrong':
+      soundAudio.playWrong();
+      break;
+    case 'victory':
+      soundAudio.playVictory();
+      break;
+    case 'closed':
+    case 'closedSign':
+      soundAudio.playClosedSign();
+      break;
+  }
+}
+
