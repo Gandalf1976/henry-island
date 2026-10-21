@@ -30,7 +30,26 @@ export class IslandWorld3D {
   private playerArmL!: THREE.Mesh;
   private playerArmR!: THREE.Mesh;
   private snowParticles!: THREE.Points;
-  private animatedPenguins: { group: THREE.Group; basePos: THREE.Vector3; angle: number; speed: number; waddle: number }[] = [];
+  private animatedPenguins: {
+    group: THREE.Group;
+    currentPos: THREE.Vector3;
+    targetPos: THREE.Vector3;
+    speed: number;
+    waddlePhase: number;
+    pauseTimer: number;
+    isPausing: boolean;
+    footL: THREE.Mesh;
+    footR: THREE.Mesh;
+    flipperL: THREE.Mesh;
+    flipperR: THREE.Mesh;
+  }[] = [];
+  private animatedLilyPads: {
+    mesh: THREE.Group;
+    baseY: number;
+    phase: number;
+    rotSpeed: number;
+  }[] = [];
+  private lakeWaterMesh?: THREE.Mesh;
   private animatedElves: { group: THREE.Group; arm: THREE.Mesh; basePos: THREE.Vector3 }[] = [];
   private campfireLight?: THREE.PointLight;
   private podiumSnowmenGroups: THREE.Group[] = [];
@@ -62,7 +81,7 @@ export class IslandWorld3D {
   private playerTargetRotation = 0;
   private walkCycle = 0;
   private zoomLevel: number = 1.0;
-  private baseCameraOffset = new THREE.Vector3(0, 28, 32);
+  private baseCameraOffset = new THREE.Vector3(0, 25, 29);
 
   // Proximity prompt
   private promptEl: HTMLElement | null = null;
@@ -87,10 +106,10 @@ export class IslandWorld3D {
     this.scene.background = new THREE.Color(0xa5c9eb); // Crisp winter sky
     this.scene.fog = new THREE.FogExp2(0xa5c9eb, 0.0065);
 
-    // 2. Camera
+    // 2. Camera - Clear isometric Animal Crossing perspective
     const aspect = window.innerWidth / window.innerHeight;
-    this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
-    this.camera.position.set(0, 32, 40);
+    this.camera = new THREE.PerspectiveCamera(46, aspect, 0.1, 1000);
+    this.camera.position.set(0, 27, 31);
 
     // 3. Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -217,14 +236,14 @@ export class IslandWorld3D {
     }
     islandShape.closePath();
 
-    // 3. Snowy Island Plateau (Upper Level)
+    // 3. Snowy Island Plateau (Upper Level - Surface sits at Y = 1.70 so all paths and props are unburied!)
     const extrudeSettings = {
       depth: 3.2,
       bevelEnabled: true,
       bevelSegments: 4,
       steps: 1,
-      bevelSize: 2.2,
-      bevelThickness: 1.4
+      bevelSize: 2.0,
+      bevelThickness: 0.5
     };
     const islandGeo = new THREE.ExtrudeGeometry(islandShape, extrudeSettings);
     const snowMat = new THREE.MeshStandardMaterial({
@@ -234,18 +253,18 @@ export class IslandWorld3D {
     });
     const islandMesh = new THREE.Mesh(islandGeo, snowMat);
     islandMesh.rotation.x = Math.PI / 2;
-    islandMesh.position.y = 1.8;
+    islandMesh.position.y = 1.20;
     islandMesh.receiveShadow = true;
     this.scene.add(islandMesh);
 
-    // 4. Sandy Frozen Beach Shoreline Rim (Lower Skirt)
+    // 4. Sandy Frozen Beach Shoreline Rim (Lower Skirt at Y = 0.80)
     const beachSettings = {
       depth: 2.0,
       bevelEnabled: true,
       bevelSegments: 2,
       steps: 1,
-      bevelSize: 4.8,
-      bevelThickness: 1.2
+      bevelSize: 4.5,
+      bevelThickness: 0.6
     };
     const beachGeo = new THREE.ExtrudeGeometry(islandShape, beachSettings);
     const beachMat = new THREE.MeshStandardMaterial({
@@ -254,50 +273,50 @@ export class IslandWorld3D {
     });
     const beachMesh = new THREE.Mesh(beachGeo, beachMat);
     beachMesh.rotation.x = Math.PI / 2;
-    beachMesh.position.y = -0.3;
+    beachMesh.position.y = 0.20;
     beachMesh.receiveShadow = true;
     this.scene.add(beachMesh);
 
-    // 5. Cobblestone Paths
+    // 5. Cobblestone Paths (Elevated at Y = 1.80, sitting crisply on top of the snow)
     const pathMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.9 });
 
     // Grand Expanded Town Center Plaza (Radius 28)
-    const plazaGeo = new THREE.CylinderGeometry(28, 28, 0.1, 40);
+    const plazaGeo = new THREE.CylinderGeometry(28, 28, 0.15, 40);
     const plaza = new THREE.Mesh(plazaGeo, pathMat);
     plaza.position.set(0, 1.8, 0);
     plaza.receiveShadow = true;
     this.scene.add(plaza);
 
     // Path North to Wordle Lodge (0, 1.8, -48)
-    const pathNorthGeo = new THREE.BoxGeometry(6, 0.1, 44);
+    const pathNorthGeo = new THREE.BoxGeometry(6, 0.15, 44);
     const pathNorth = new THREE.Mesh(pathNorthGeo, pathMat);
     pathNorth.position.set(0, 1.8, -26);
     pathNorth.receiveShadow = true;
     this.scene.add(pathNorth);
 
     // Path East to Henry Lake (48, 1.8, 4)
-    const pathEastGeo = new THREE.BoxGeometry(42, 0.1, 6);
+    const pathEastGeo = new THREE.BoxGeometry(42, 0.15, 6);
     const pathEast = new THREE.Mesh(pathEastGeo, pathMat);
     pathEast.position.set(26, 1.8, 4);
     pathEast.receiveShadow = true;
     this.scene.add(pathEast);
 
     // Path West to Quiz Lodge (-48, 1.8, 4)
-    const pathWestGeo = new THREE.BoxGeometry(42, 0.1, 6);
+    const pathWestGeo = new THREE.BoxGeometry(42, 0.15, 6);
     const pathWest = new THREE.Mesh(pathWestGeo, pathMat);
     pathWest.position.set(-26, 1.8, 4);
     pathWest.receiveShadow = true;
     this.scene.add(pathWest);
 
     // Path South to Santa & Sleigh (0, 1.8, 42)
-    const pathSouthGeo = new THREE.BoxGeometry(6, 0.1, 36);
+    const pathSouthGeo = new THREE.BoxGeometry(6, 0.15, 36);
     const pathSouth = new THREE.Mesh(pathSouthGeo, pathMat);
     pathSouth.position.set(0, 1.8, 25);
     pathSouth.receiveShadow = true;
     this.scene.add(pathSouth);
 
     // Path South-East to Word Ladder Lodge (38, 1.8, 38)
-    const pathLadderGeo = new THREE.BoxGeometry(5, 0.1, 42);
+    const pathLadderGeo = new THREE.BoxGeometry(5, 0.15, 42);
     const pathLadder = new THREE.Mesh(pathLadderGeo, pathMat);
     pathLadder.position.set(20, 1.8, 20);
     pathLadder.rotation.y = -Math.PI / 4;
@@ -305,7 +324,7 @@ export class IslandWorld3D {
     this.scene.add(pathLadder);
 
     // Path North-East to Santa's Elves Workshop (45, 1.8, -35)
-    const pathElvesGeo = new THREE.BoxGeometry(5, 0.1, 42);
+    const pathElvesGeo = new THREE.BoxGeometry(5, 0.15, 42);
     const pathElves = new THREE.Mesh(pathElvesGeo, pathMat);
     pathElves.position.set(24, 1.8, -18);
     pathElves.rotation.y = Math.PI / 4;
@@ -313,7 +332,7 @@ export class IslandWorld3D {
     this.scene.add(pathElves);
 
     // Path South-West to Cozy Hearth (-42, 1.8, -25)
-    const pathHearthGeo = new THREE.BoxGeometry(5, 0.1, 40);
+    const pathHearthGeo = new THREE.BoxGeometry(5, 0.15, 40);
     const pathHearth = new THREE.Mesh(pathHearthGeo, pathMat);
     pathHearth.position.set(-22, 1.8, -14);
     pathHearth.rotation.y = -Math.PI / 4;
@@ -336,123 +355,176 @@ export class IslandWorld3D {
   private buildLandmarks(): void {
     // -------------------------------------------------------------
     // 1. WORDLE LODGE (North: 0, 1.8, -48)
+    // Scaled to compact charming proportion (~20% smaller)
     // -------------------------------------------------------------
     const wordleGroup = new THREE.Group();
     wordleGroup.position.set(0, 1.8, -48);
 
     // Cabin Main Walls
-    const cabinGeo = new THREE.BoxGeometry(16, 10, 14);
+    const cabinGeo = new THREE.BoxGeometry(13, 8.2, 11);
     const woodMat = new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.8 });
     const cabinMesh = new THREE.Mesh(cabinGeo, woodMat);
-    cabinMesh.position.y = 5;
+    cabinMesh.position.y = 4.1;
     cabinMesh.castShadow = true;
     cabinMesh.receiveShadow = true;
     wordleGroup.add(cabinMesh);
 
     // Roof (Steep Snowy A-Frame)
-    const roofGeo = new THREE.ConeGeometry(13, 7, 4);
+    const roofGeo = new THREE.ConeGeometry(10.5, 5.8, 4);
     const roofMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.7 });
     const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.y = 13.5;
+    roof.position.y = 11.0;
     roof.rotation.y = Math.PI / 4;
     roof.scale.set(1.1, 1, 1.2);
     roof.castShadow = true;
     wordleGroup.add(roof);
 
     // Chimney
-    const chimneyGeo = new THREE.BoxGeometry(2, 6, 2);
+    const chimneyGeo = new THREE.BoxGeometry(1.6, 5, 1.6);
     const stoneMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9 });
     const chimney = new THREE.Mesh(chimneyGeo, stoneMat);
-    chimney.position.set(5, 13, -3);
+    chimney.position.set(3.8, 10.5, -2.5);
     chimney.castShadow = true;
     wordleGroup.add(chimney);
 
     // Windows & Door
-    const winGeo = new THREE.PlaneGeometry(2.5, 3.5);
+    const winGeo = new THREE.PlaneGeometry(2.0, 2.8);
     const winMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
     const win1 = new THREE.Mesh(winGeo, winMat);
-    win1.position.set(-4, 5, 7.05);
+    win1.position.set(-3.2, 4.1, 5.55);
     wordleGroup.add(win1);
     const win2 = new THREE.Mesh(winGeo, winMat);
-    win2.position.set(4, 5, 7.05);
+    win2.position.set(3.2, 4.1, 5.55);
     wordleGroup.add(win2);
 
-    const doorGeo = new THREE.PlaneGeometry(3, 5);
+    const doorGeo = new THREE.PlaneGeometry(2.4, 4.0);
     const doorMat = new THREE.MeshStandardMaterial({ color: 0x451a03 });
     const door = new THREE.Mesh(doorGeo, doorMat);
-    door.position.set(0, 2.5, 7.05);
+    door.position.set(0, 2.0, 5.55);
     wordleGroup.add(door);
 
-    // ROOF SIGN - Mounted directly on front roof gable, facing SOUTH!
+    // ROOF SIGN - Mounted prominently on front roof gable, facing SOUTH!
     const wordleRoofSign = this.createRoofSign('WORDLE LODGE', '5-Letter Daily Challenge 🟩');
-    wordleRoofSign.position.set(0, 14.5, 6.6);
+    wordleRoofSign.position.set(0, 11.8, 5.2);
     wordleRoofSign.rotation.set(0, 0, 0); // Faces South!
     wordleGroup.add(wordleRoofSign);
 
     this.scene.add(wordleGroup);
 
     // -------------------------------------------------------------
-    // 2. FROZEN LAKE (East: 48, 1.8, 4)
+    // 2. SPARKLING WATER LAKE (East: 48, 1.8, 4)
+    // Real crystal-clear deep water, dark pebble bed, animated lily pads with lotus blossoms!
     // -------------------------------------------------------------
     const lakeGroup = new THREE.Group();
     lakeGroup.position.set(48, 1.8, 4);
 
-    // Frozen Ice Surface
-    const lakeIceGeo = new THREE.CylinderGeometry(20, 20, 0.4, 32);
-    const iceMat = new THREE.MeshStandardMaterial({
-      color: 0x67e8f9,
-      roughness: 0.15,
-      metalness: 0.2,
-      transparent: true,
-      opacity: 0.9
-    });
-    const lakeIce = new THREE.Mesh(lakeIceGeo, iceMat);
-    lakeIce.position.y = 0.2;
-    lakeIce.receiveShadow = true;
-    lakeGroup.add(lakeIce);
+    // Lake Bed (Deep Stone & Pebble Basin)
+    const lakeBedGeo = new THREE.CylinderGeometry(21, 20, 0.6, 32);
+    const lakeBedMat = new THREE.MeshStandardMaterial({ color: 0x0f2937, roughness: 0.95 });
+    const lakeBed = new THREE.Mesh(lakeBedGeo, lakeBedMat);
+    lakeBed.position.y = -0.5;
+    lakeBed.receiveShadow = true;
+    lakeGroup.add(lakeBed);
 
-    // Snowbank rim around lake
-    const snowbankGeo = new THREE.TorusGeometry(20.5, 1.8, 8, 32);
-    const snowbank = new THREE.Mesh(snowbankGeo, new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+    // Real Translucent Sparkling Azure Water Surface (sits at Y = 1.70, just below snow rim)
+    const lakeWaterGeo = new THREE.CylinderGeometry(20.5, 20.5, 0.2, 32);
+    const lakeWaterMat = new THREE.MeshStandardMaterial({
+      color: 0x0284c7, // vibrant sky/azure water
+      emissive: 0x0369a1,
+      emissiveIntensity: 0.15,
+      roughness: 0.08,
+      metalness: 0.15,
+      transparent: true,
+      opacity: 0.85
+    });
+    const lakeWater = new THREE.Mesh(lakeWaterGeo, lakeWaterMat);
+    lakeWater.position.y = -0.1;
+    lakeWater.receiveShadow = true;
+    lakeGroup.add(lakeWater);
+    this.lakeWaterMesh = lakeWater;
+
+    // Natural Snowbank Rim around lake
+    const snowbankGeo = new THREE.TorusGeometry(20.5, 1.4, 8, 36);
+    const snowbank = new THREE.Mesh(snowbankGeo, new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.85 }));
     snowbank.rotation.x = Math.PI / 2;
-    snowbank.position.y = 0.4;
+    snowbank.position.y = 0.15;
     lakeGroup.add(snowbank);
 
-    // 3D Lilypads
-    const padMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.7 });
-    for (let i = 0; i < 6; i++) {
-      const angle = (i / 6) * Math.PI * 2;
-      const padGeo = new THREE.CylinderGeometry(1.6, 1.6, 0.15, 16);
-      const pad = new THREE.Mesh(padGeo, padMat);
-      pad.position.set(Math.cos(angle) * 14, 0.45, Math.sin(angle) * 14);
-      lakeGroup.add(pad);
+    // Decorative Snowy Boulders along shoreline
+    const boulderMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.9 });
+    for (let r = 0; r < 8; r++) {
+      const bAngle = (r / 8) * Math.PI * 2 + 0.25;
+      const boulder = new THREE.Mesh(new THREE.DodecahedronGeometry(1.0 + (r % 3) * 0.3, 0), boulderMat);
+      boulder.position.set(Math.cos(bAngle) * 20.5, 0.2, Math.sin(bAngle) * 20.5);
+      boulder.scale.set(1.2, 0.7, 1.0);
+      lakeGroup.add(boulder);
     }
 
+    // 3D Realistic Lilypads with Notch & Lotus Waterlily Blossoms!
+    const lilyPadOffsets = [
+      { x: -8, z: -6, withFlower: true, scale: 1.1 },
+      { x: -5, z: 7, withFlower: false, scale: 0.9 },
+      { x: 3, z: -10, withFlower: false, scale: 1.0 },
+      { x: 8, z: -3, withFlower: true, scale: 1.2 },
+      { x: 6, z: 9, withFlower: false, scale: 0.95 },
+      { x: -11, z: 4, withFlower: false, scale: 1.0 },
+      { x: 12, z: 3, withFlower: true, scale: 1.15 },
+      { x: -2, z: -12, withFlower: false, scale: 0.85 }
+    ];
+
+    lilyPadOffsets.forEach((padData, idx) => {
+      const padGroup = this.create3DLilyPad(padData.withFlower, padData.scale);
+      padGroup.position.set(padData.x, 0.02, padData.z);
+      lakeGroup.add(padGroup);
+      this.animatedLilyPads.push({
+        mesh: padGroup,
+        baseY: 0.02,
+        phase: idx * 0.9,
+        rotSpeed: 0.04 * (idx % 2 === 0 ? 1 : -1)
+      });
+    });
+
     // Lakeside Wooden Viewing Pier (extending west toward Town Center)
-    const pierDeckGeo = new THREE.BoxGeometry(10, 0.5, 14);
+    const pierDeckGeo = new THREE.BoxGeometry(10, 0.4, 14);
     const pierMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
     const pierDeck = new THREE.Mesh(pierDeckGeo, pierMat);
-    pierDeck.position.set(-22, 0.25, 0);
+    pierDeck.position.set(-22, 0.15, 0);
     pierDeck.receiveShadow = true;
     lakeGroup.add(pierDeck);
+
+    // Dock Pilings
+    const pileMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.9 });
+    [[-25, -5], [-25, 5], [-19, -5], [-19, 5]].forEach(([px, pz]) => {
+      const piling = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.2, 8), pileMat);
+      piling.position.set(px, -0.4, pz);
+      lakeGroup.add(piling);
+    });
 
     // Railing along lake edge to prevent walking into water
     const railMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 });
     const railGeo = new THREE.BoxGeometry(0.3, 1.4, 14);
     const railing = new THREE.Mesh(railGeo, railMat);
-    railing.position.set(-17.2, 0.9, 0);
+    railing.position.set(-17.2, 0.8, 0);
     railing.castShadow = true;
     lakeGroup.add(railing);
+
+    // Rail posts
+    [-6, -2, 2, 6].forEach(rz => {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.6, 0.4), railMat);
+      post.position.set(-17.2, 0.8, rz);
+      lakeGroup.add(post);
+    });
 
     // Festive Wreath
     const wreathGeo = new THREE.TorusGeometry(0.9, 0.3, 8, 16);
     const wreathMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 });
     const wreath = new THREE.Mesh(wreathGeo, wreathMat);
-    wreath.position.set(-17.4, 1.1, 0);
+    wreath.position.set(-17.4, 1.0, 0);
     wreath.rotation.y = Math.PI / 2;
     lakeGroup.add(wreath);
 
-    // Lake Signpost (standing on the dry wooden dock, facing SOUTH!)
+    // Lake Signpost (standing prominently on the dry wooden dock entrance, facing SOUTH!)
+    // Absolutely NO obstruction from the bulletin board (which is over at the West plaza)!
     const lakeSign = this.createSignpost('HENRY LAKE', '120s Word Scramble 🪷');
     lakeSign.position.set(-24, 0, -3.5);
     lakeSign.rotation.set(0, 0, 0); // Faces South!
@@ -462,93 +534,95 @@ export class IslandWorld3D {
 
     // -------------------------------------------------------------
     // 3. QUIZ LODGE (West: -48, 1.8, 4)
+    // Scaled to compact charming proportion (~20% smaller)
     // -------------------------------------------------------------
     const quizGroup = new THREE.Group();
     quizGroup.position.set(-48, 1.8, 4);
 
     // Lodge Main Hall
-    const quizHallGeo = new THREE.BoxGeometry(18, 12, 16);
+    const quizHallGeo = new THREE.BoxGeometry(14.4, 9.6, 12.8);
     const hallMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.7 });
     const quizHall = new THREE.Mesh(quizHallGeo, hallMat);
-    quizHall.position.y = 6;
+    quizHall.position.y = 4.8;
     quizHall.castShadow = true;
     quizGroup.add(quizHall);
 
     // Gabled Roof
-    const quizRoofGeo = new THREE.ConeGeometry(15, 8, 4);
+    const quizRoofGeo = new THREE.ConeGeometry(11.8, 6.4, 4);
     const quizRoof = new THREE.Mesh(quizRoofGeo, new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
-    quizRoof.position.y = 15;
+    quizRoof.position.y = 12.5;
     quizRoof.rotation.y = Math.PI / 4;
     quizRoof.scale.set(1.2, 1, 1.2);
     quizRoof.castShadow = true;
     quizGroup.add(quizRoof);
 
     // Bell Tower
-    const towerGeo = new THREE.BoxGeometry(4, 9, 4);
+    const towerGeo = new THREE.BoxGeometry(3.2, 7.2, 3.2);
     const tower = new THREE.Mesh(towerGeo, new THREE.MeshStandardMaterial({ color: 0x991b1b }));
-    tower.position.set(0, 18, 0);
+    tower.position.set(0, 15.0, 0);
     quizGroup.add(tower);
 
     // Golden Bell
-    const bellGeo = new THREE.SphereGeometry(1.2, 16, 16);
+    const bellGeo = new THREE.SphereGeometry(1.0, 16, 16);
     const bell = new THREE.Mesh(bellGeo, new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8, roughness: 0.2 }));
-    bell.position.set(0, 21.5, 0);
+    bell.position.set(0, 18.0, 0);
     quizGroup.add(bell);
 
     // ROOF SIGN - Mounted on front roof gable, facing SOUTH!
     const quizRoofSign = this.createRoofSign('QUIZ LODGE', '60s Teen Trivia Challenge 🧠');
-    quizRoofSign.position.set(0, 16.5, 7.8);
+    quizRoofSign.position.set(0, 13.5, 6.0);
     quizRoofSign.rotation.set(0, 0, 0); // Faces South!
     quizGroup.add(quizRoofSign);
 
     this.scene.add(quizGroup);
 
     // -------------------------------------------------------------
-    // 4. NEW: HENRY WORD LADDER LODGE (South-East: 38, 1.8, 38)
+    // 4. HENRY WORD LADDER LODGE (South-East: 38, 1.8, 38)
+    // Scaled to compact charming proportion (~20% smaller)
     // -------------------------------------------------------------
     const ladderGroup = new THREE.Group();
     ladderGroup.position.set(38, 1.8, 38);
 
     // Alpine Mountain Chalet
-    const chaletGeo = new THREE.BoxGeometry(16, 10, 14);
+    const chaletGeo = new THREE.BoxGeometry(13, 8.2, 11);
     const chaletMat = new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.8 }); // Rich evergreen timber
     const chalet = new THREE.Mesh(chaletGeo, chaletMat);
-    chalet.position.y = 5;
+    chalet.position.y = 4.1;
     chalet.castShadow = true;
     ladderGroup.add(chalet);
 
     // Steep A-frame snowy roof
-    const ladderRoofGeo = new THREE.ConeGeometry(13, 7, 4);
+    const ladderRoofGeo = new THREE.ConeGeometry(10.5, 5.8, 4);
     const ladderRoof = new THREE.Mesh(ladderRoofGeo, new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
-    ladderRoof.position.y = 13.5;
+    ladderRoof.position.y = 11.0;
     ladderRoof.rotation.y = Math.PI / 4;
     ladderRoof.scale.set(1.1, 1, 1.2);
     ladderRoof.castShadow = true;
     ladderGroup.add(ladderRoof);
 
     // Chimney
-    const ladderChimney = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 2), stoneMat);
-    ladderChimney.position.set(-5, 13, -3);
+    const ladderChimney = new THREE.Mesh(new THREE.BoxGeometry(1.6, 5, 1.6), stoneMat);
+    ladderChimney.position.set(-3.8, 10.5, -2.5);
     ladderGroup.add(ladderChimney);
 
-    // Wooden ladder leaning against the exterior wall
+    // Wooden ladder leaning against exterior wall
     const propLadder = this.createWoodenLadderProp();
-    propLadder.position.set(5.5, 0, 7.2);
+    propLadder.position.set(4.5, 0, 5.8);
     propLadder.rotation.x = -0.15;
     ladderGroup.add(propLadder);
 
     // Windows & Door
     const lWin1 = new THREE.Mesh(winGeo, winMat);
-    lWin1.position.set(-4, 5, 7.05);
+    lWin1.position.set(-3.2, 4.1, 5.55);
     ladderGroup.add(lWin1);
 
     const lDoor = new THREE.Mesh(doorGeo, doorMat);
-    lDoor.position.set(0, 2.5, 7.05);
+    lDoor.position.set(0, 2.0, 5.55);
     ladderGroup.add(lDoor);
 
     // ROOF SIGN - Mounted on front roof gable, facing SOUTH!
     const ladderRoofSign = this.createRoofSign('WORD LADDER LODGE', '4-Letter Daily Challenge 🪜');
-    ladderRoofSign.position.set(0, 14.5, 6.6);
+    ladderRoofSign.position.set(0, 11.8, 5.2);
     ladderRoofSign.rotation.set(0, 0, 0); // Faces South!
     ladderGroup.add(ladderRoofSign);
 
@@ -568,73 +642,74 @@ export class IslandWorld3D {
   private buildExplorationAreas(): void {
     // -------------------------------------------------------------
     // Area A: SANTA'S ELVES' TOY WORKSHOP (45, 1.8, -35)
+    // Scaled to compact charming proportion (~20% smaller)
     // -------------------------------------------------------------
     const elvesGroup = new THREE.Group();
     elvesGroup.position.set(45, 1.8, -35);
 
     // Elf Chalet
-    const elfChaletGeo = new THREE.BoxGeometry(14, 9, 12);
+    const elfChaletGeo = new THREE.BoxGeometry(11.2, 7.2, 9.6);
     const elfWoodMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.75 }); // Festive Elf Green
     const elfChalet = new THREE.Mesh(elfChaletGeo, elfWoodMat);
-    elfChalet.position.y = 4.5;
+    elfChalet.position.y = 3.6;
     elfChalet.castShadow = true;
     elvesGroup.add(elfChalet);
 
     // Red Shingle Roof
-    const elfRoofGeo = new THREE.ConeGeometry(11, 6, 4);
+    const elfRoofGeo = new THREE.ConeGeometry(8.8, 4.8, 4);
     const elfRoof = new THREE.Mesh(elfRoofGeo, new THREE.MeshStandardMaterial({ color: 0x991b1b }));
-    elfRoof.position.y = 11.5;
+    elfRoof.position.y = 9.6;
     elfRoof.rotation.y = Math.PI / 4;
     elfRoof.scale.set(1.1, 1, 1.2);
     elvesGroup.add(elfRoof);
 
     // Roof Sign - Facing SOUTH!
     const elfSign = this.createRoofSign("SANTA'S ELVES WORKSHOP", 'Crafting Holiday Magic 🧝🎁');
-    elfSign.position.set(0, 12.8, 5.8);
+    elfSign.position.set(0, 10.6, 4.6);
     elfSign.rotation.set(0, 0, 0); // Faces South!
     elvesGroup.add(elfSign);
 
     // Outdoor Toy Workbench
-    const benchGeo = new THREE.BoxGeometry(8, 1.4, 3);
+    const benchGeo = new THREE.BoxGeometry(6.5, 1.2, 2.6);
     const benchMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
     const bench = new THREE.Mesh(benchGeo, benchMat);
-    bench.position.set(0, 0.7, 9);
+    bench.position.set(0, 0.6, 7.5);
     bench.castShadow = true;
     elvesGroup.add(bench);
 
     // Wooden Toy Train on Workbench
     const trainMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5 });
-    const trainEngine = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 1.2), trainMat);
-    trainEngine.position.set(-1.8, 1.8, 9);
+    const trainEngine = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 1.0), trainMat);
+    trainEngine.position.set(-1.4, 1.5, 7.5);
     elvesGroup.add(trainEngine);
 
-    const trainFunnel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.6, 8), new THREE.MeshStandardMaterial({ color: 0xfacc15 }));
-    trainFunnel.position.set(-2.4, 2.4, 9);
+    const trainFunnel = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.5, 8), new THREE.MeshStandardMaterial({ color: 0xfacc15 }));
+    trainFunnel.position.set(-1.9, 2.0, 7.5);
     elvesGroup.add(trainFunnel);
 
-    const trainCar = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 1.1), new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
-    trainCar.position.set(0.6, 1.7, 9);
+    const trainCar = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.9), new THREE.MeshStandardMaterial({ color: 0x3b82f6 }));
+    trainCar.position.set(0.5, 1.45, 7.5);
     elvesGroup.add(trainCar);
 
     // Wrapped Presents beside workbench
     const giftMat1 = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
     const giftMat2 = new THREE.MeshStandardMaterial({ color: 0xec4899 });
-    const g1 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), giftMat1);
-    g1.position.set(2.4, 1.8, 9);
+    const g1 = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 1.0), giftMat1);
+    g1.position.set(2.0, 1.5, 7.5);
     elvesGroup.add(g1);
 
-    const g2 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), giftMat2);
-    g2.position.set(4.5, 0.7, 8);
+    const g2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), giftMat2);
+    g2.position.set(3.8, 0.6, 6.8);
     elvesGroup.add(g2);
 
     // Animated 3D Elves standing beside the workbench!
     const elf1 = this.create3DElf();
-    elf1.group.position.set(-3.2, 0, 9);
+    elf1.group.position.set(-2.6, 0, 7.5);
     elvesGroup.add(elf1.group);
     this.animatedElves.push(elf1);
 
     const elf2 = this.create3DElf();
-    elf2.group.position.set(3.2, 0, 9);
+    elf2.group.position.set(2.6, 0, 7.5);
     elf2.group.rotation.y = -0.5;
     elvesGroup.add(elf2.group);
     this.animatedElves.push(elf2);
@@ -643,66 +718,67 @@ export class IslandWorld3D {
 
     // -------------------------------------------------------------
     // Area B: COZY HEARTH & CAMPFIRE RETREAT (-42, 1.8, -25)
+    // Scaled to compact charming proportion (~20% smaller)
     // -------------------------------------------------------------
     const hearthGroup = new THREE.Group();
     hearthGroup.position.set(-42, 1.8, -25);
 
     // Rustic Pine Log Cabin
-    const logCabinGeo = new THREE.BoxGeometry(14, 8, 12);
+    const logCabinGeo = new THREE.BoxGeometry(11.2, 6.5, 9.6);
     const cabinMat = new THREE.MeshStandardMaterial({ color: 0x543310, roughness: 0.9 });
     const cabin = new THREE.Mesh(logCabinGeo, cabinMat);
-    cabin.position.y = 4;
+    cabin.position.y = 3.25;
     cabin.castShadow = true;
     hearthGroup.add(cabin);
 
     // Snowy Chalet Roof
-    const cabinRoofGeo = new THREE.ConeGeometry(11, 6, 4);
+    const cabinRoofGeo = new THREE.ConeGeometry(8.8, 4.8, 4);
     const cabinRoof = new THREE.Mesh(cabinRoofGeo, new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
-    cabinRoof.position.y = 10.5;
+    cabinRoof.position.y = 8.9;
     cabinRoof.rotation.y = Math.PI / 4;
     cabinRoof.scale.set(1.1, 1, 1.2);
     hearthGroup.add(cabinRoof);
 
     // Roof Sign - Facing SOUTH!
     const hearthSign = this.createRoofSign('COZY HEARTH RETREAT', 'Campfire & Marshmallows 🔥☕');
-    hearthSign.position.set(0, 11.5, 5.8);
+    hearthSign.position.set(0, 9.8, 4.6);
     hearthSign.rotation.set(0, 0, 0); // Faces South!
     hearthGroup.add(hearthSign);
 
     // Outdoor Stone Campfire Pit
     const campfireRing = new THREE.Group();
-    campfireRing.position.set(0, 0, 10);
+    campfireRing.position.set(0, 0, 8.5);
 
     // Ring of 8 stones
     const stoneMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.9 });
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7, 0), stoneMat);
-      s.position.set(Math.cos(a) * 2.2, 0.35, Math.sin(a) * 2.2);
+      const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.6, 0), stoneMat);
+      s.position.set(Math.cos(a) * 2.0, 0.3, Math.sin(a) * 2.0);
       campfireRing.add(s);
     }
 
     // Crossed fire logs
     const fireLogMat = new THREE.MeshStandardMaterial({ color: 0x3f2510, roughness: 0.8 });
-    const flog1 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 2.4, 8), fireLogMat);
+    const flog1 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2.2, 8), fireLogMat);
     flog1.rotation.z = Math.PI / 3;
-    flog1.position.y = 0.5;
+    flog1.position.y = 0.45;
     campfireRing.add(flog1);
 
-    const flog2 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 2.4, 8), fireLogMat);
+    const flog2 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2.2, 8), fireLogMat);
     flog2.rotation.x = Math.PI / 3;
-    flog2.position.y = 0.5;
+    flog2.position.y = 0.45;
     campfireRing.add(flog2);
 
     // Glowing Flame Cones
     const flameMat1 = new THREE.MeshBasicMaterial({ color: 0xf97316 });
     const flameMat2 = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
-    const flame1 = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 6), flameMat1);
-    flame1.position.y = 1.1;
+    const flame1 = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.6, 6), flameMat1);
+    flame1.position.y = 1.0;
     campfireRing.add(flame1);
 
-    const flame2 = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.4, 6), flameMat2);
-    flame2.position.y = 1.3;
+    const flame2 = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.2, 6), flameMat2);
+    flame2.position.y = 1.2;
     campfireRing.add(flame2);
 
     // Warm Flickering Campfire Light
@@ -714,10 +790,10 @@ export class IslandWorld3D {
     const benchLogMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.85 });
     const benchAngles = [-Math.PI * 0.7, Math.PI * 0.7, 0];
     benchAngles.forEach(ang => {
-      const bLog = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 3.5, 8), benchLogMat);
+      const bLog = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 3.2, 8), benchLogMat);
       bLog.rotation.z = Math.PI / 2;
       bLog.rotation.y = ang;
-      bLog.position.set(Math.sin(ang) * 4.2, 0.4, Math.cos(ang) * 4.2);
+      bLog.position.set(Math.sin(ang) * 3.8, 0.35, Math.cos(ang) * 3.8);
       bLog.castShadow = true;
       campfireRing.add(bLog);
     });
@@ -817,36 +893,117 @@ export class IslandWorld3D {
     return prop;
   }
 
+  private create3DLilyPad(withFlower: boolean, scale = 1.0): THREE.Group {
+    const padGroup = new THREE.Group();
+    padGroup.scale.set(scale, scale, scale);
+
+    // Green lilypad disc with characteristic V-notch
+    const shape = new THREE.Shape();
+    const radius = 2.2;
+    const notchAngle = 0.35; // radians cut-out
+    shape.absarc(0, 0, radius, notchAngle, Math.PI * 2 - notchAngle, false);
+    shape.lineTo(0, 0);
+    shape.closePath();
+
+    const padGeo = new THREE.ShapeGeometry(shape, 24);
+    const padMat = new THREE.MeshStandardMaterial({
+      color: 0x15803d, // lush water lily green
+      roughness: 0.6,
+      side: THREE.DoubleSide
+    });
+    const padMesh = new THREE.Mesh(padGeo, padMat);
+    padMesh.rotation.x = -Math.PI / 2;
+    padMesh.receiveShadow = true;
+    padGroup.add(padMesh);
+
+    // Subtle edge rim
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.7 });
+    const rimGeo = new THREE.RingGeometry(radius * 0.88, radius, 24);
+    const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+    rimMesh.rotation.x = -Math.PI / 2;
+    rimMesh.position.y = 0.005;
+    padGroup.add(rimMesh);
+
+    // Optional Lotus / Waterlily Flower
+    if (withFlower) {
+      const flowerGroup = new THREE.Group();
+      flowerGroup.position.set(0.6, 0.08, 0.5);
+
+      // Flower petals (soft pink & white)
+      const petalMat = new THREE.MeshStandardMaterial({
+        color: 0xfbcfe8, // soft pink
+        emissive: 0xf472b6,
+        emissiveIntensity: 0.15,
+        roughness: 0.4
+      });
+      const petalGeo = new THREE.ConeGeometry(0.35, 0.8, 5);
+
+      for (let p = 0; p < 8; p++) {
+        const pAng = (p / 8) * Math.PI * 2;
+        const petal = new THREE.Mesh(petalGeo, petalMat);
+        petal.position.set(Math.cos(pAng) * 0.35, 0.25, Math.sin(pAng) * 0.35);
+        petal.rotation.x = Math.sin(pAng) * 0.45;
+        petal.rotation.z = -Math.cos(pAng) * 0.45;
+        flowerGroup.add(petal);
+      }
+
+      // Golden center stamen
+      const centerMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 });
+      const center = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), centerMat);
+      center.position.y = 0.3;
+      flowerGroup.add(center);
+
+      padGroup.add(flowerGroup);
+    }
+
+    return padGroup;
+  }
+
   /**
-   * Town Center: Podium moved back to z = -14; Bulletin Board moved to (22, 1.8, 2).
-   * This completely avoids any obstruction of the Snowman Podium!
+   * Town Center: Elevated stone dais and Podium placed at z = -14.
+   * Bulletin Board moved to (-14, 0, 10), completely clear of both the podium and Henry Lake!
    */
   private buildPodiumAndBoard(): void {
     const centerGroup = new THREE.Group();
     centerGroup.position.set(0, 1.8, 0);
 
-    // Podium Pedestals placed center-north in plaza at z = -14
+    // Elevated 2-tier circular stone dais so pedestals and signs are completely above snow
+    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.85 });
+    const daisTier1 = new THREE.Mesh(new THREE.CylinderGeometry(13, 13.5, 0.45, 32), stoneMat);
+    daisTier1.position.set(0, 0.225, -14);
+    daisTier1.receiveShadow = true;
+    centerGroup.add(daisTier1);
+
+    const daisTier2 = new THREE.Mesh(new THREE.CylinderGeometry(11.5, 12, 0.40, 32), stoneMat);
+    daisTier2.position.set(0, 0.65, -14);
+    daisTier2.receiveShadow = true;
+    centerGroup.add(daisTier2);
+
+    const daisTopY = 0.85;
+
+    // Podium Pedestals placed on dais at z = -14
     const podiumPillars = [
-      { rank: 2, x: -7, h: 2.2, color: 0x94a3b8 }, // 2nd Silver
-      { rank: 1, x: 0, h: 3.4, color: 0xf59e0b },  // 1st Gold
-      { rank: 3, x: 7, h: 1.6, color: 0xb45309 }   // 3rd Bronze
+      { rank: 2, x: -7, h: 2.4, color: 0x94a3b8 }, // 2nd Silver
+      { rank: 1, x: 0, h: 3.6, color: 0xf59e0b },  // 1st Gold
+      { rank: 3, x: 7, h: 1.8, color: 0xb45309 }   // 3rd Bronze
     ];
 
     podiumPillars.forEach(p => {
       const pGeo = new THREE.CylinderGeometry(3.2, 3.5, p.h, 24);
       const pMat = new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.5, metalness: 0.2 });
       const pMesh = new THREE.Mesh(pGeo, pMat);
-      pMesh.position.set(p.x, p.h / 2, -14);
+      pMesh.position.set(p.x, daisTopY + p.h / 2, -14);
       pMesh.castShadow = true;
       pMesh.receiveShadow = true;
       centerGroup.add(pMesh);
     });
 
     // -------------------------------------------------------------
-    // HOLIDAY BULLETIN BOARD - Moved to (22, 1.8, 2), facing SOUTH!
+    // HOLIDAY BULLETIN BOARD - Moved to South-West (-14, 0, 10), facing SOUTH!
+    // Leaves all sightlines to Henry Lake (East) and the Podium (North) completely open.
     // -------------------------------------------------------------
     const boardGroup = new THREE.Group();
-    boardGroup.position.set(22, 0, 2);
+    boardGroup.position.set(-14, 0, 10);
 
     // Wooden Posts
     const postMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
@@ -905,10 +1062,11 @@ export class IslandWorld3D {
     this.podiumPlaquesGroups = [];
 
     const leaderboard = familyStore.getLeaderboard();
+    const daisTopY = 0.85;
     const slots = [
-      { rank: 2, x: -7, h: 2.2, color: '#94a3b8', medal: '🥈', title: '2ND PLACE' },
-      { rank: 1, x: 0, h: 3.4, color: '#f59e0b', medal: '🥇', title: '1ST PLACE' },
-      { rank: 3, x: 7, h: 1.6, color: '#b45309', medal: '🥉', title: '3RD PLACE' }
+      { rank: 2, x: -7, h: 2.4, color: '#94a3b8', medal: '🥈', title: '2ND PLACE' },
+      { rank: 1, x: 0, h: 3.6, color: '#f59e0b', medal: '🥇', title: '1ST PLACE' },
+      { rank: 3, x: 7, h: 1.8, color: '#b45309', medal: '🥉', title: '3RD PLACE' }
     ];
 
     slots.forEach(slot => {
@@ -918,15 +1076,15 @@ export class IslandWorld3D {
       if (entry) {
         const scoreScale = THREE.MathUtils.clamp(0.8 + (entry.stats.averageScore / 10) * 0.4, 0.7, 1.4);
         const smGroup = this.create3DSnowman(scoreScale, entry.rank === 1);
-        smGroup.position.set(slot.x, 1.8 + slot.h, -14);
+        smGroup.position.set(slot.x, 1.8 + daisTopY + slot.h, -14);
         this.scene.add(smGroup);
         this.podiumSnowmenGroups.push(smGroup);
       }
 
       // 2. High-res Plaque with Leader Name and Score written on base facing SOUTH!
       const plaque = this.createPodiumPlaque(slot, entry);
-      plaque.position.set(slot.x, 1.8 + slot.h * 0.5, -14 + 3.45);
-      plaque.rotation.set(0, 0, 0); // Faces South!
+      plaque.position.set(slot.x, 1.8 + daisTopY + slot.h * 0.45, -14 + 3.65);
+      plaque.rotation.set(-0.08, 0, 0); // Faces South & tilted slightly upward towards the camera!
       this.scene.add(plaque);
       this.podiumPlaquesGroups.push(plaque);
     });
@@ -963,22 +1121,22 @@ export class IslandWorld3D {
       ctx.fillStyle = slot.color;
       ctx.font = 'bold 28px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`${slot.medal} ${slot.title}`, 256, 54);
+      ctx.fillText(`${slot.medal} ${slot.title}`, 256, 52);
 
       if (entry) {
         const av = AVATAR_ROSTER.find(a => a.id === entry.player.avatarId) || AVATAR_ROSTER[0];
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 38px sans-serif';
+        ctx.font = '900 40px sans-serif';
         const displayName = `${av.emoji} ${entry.player.name}`;
-        ctx.fillText(displayName, 256, 118);
+        ctx.fillText(displayName, 256, 116);
 
         ctx.fillStyle = '#fef08a';
-        ctx.font = 'bold 26px sans-serif';
-        ctx.fillText(`Avg: ${entry.stats.averageScore.toFixed(1)} pts`, 256, 172);
+        ctx.font = 'bold 28px sans-serif';
+        ctx.fillText(`Avg: ${entry.stats.averageScore.toFixed(1)} pts`, 256, 170);
 
         ctx.fillStyle = '#94a3b8';
-        ctx.font = '20px sans-serif';
-        ctx.fillText(`Today: ${entry.stats.todayScore} pts • ${entry.stats.daysPlayed} days`, 256, 218);
+        ctx.font = '22px sans-serif';
+        ctx.fillText(`Today: ${entry.stats.todayScore} pts • ${entry.stats.daysPlayed} days`, 256, 216);
       } else {
         ctx.fillStyle = '#94a3b8';
         ctx.font = 'bold 30px sans-serif';
@@ -994,15 +1152,15 @@ export class IslandWorld3D {
     const plaqueMat = new THREE.MeshBasicMaterial({ map: texture });
 
     // Metallic frame backing
-    const frameGeo = new THREE.BoxGeometry(4.2, 1.7, 0.12);
+    const frameGeo = new THREE.BoxGeometry(4.8, 2.3, 0.14);
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.4, metalness: 0.6 });
     const frame = new THREE.Mesh(frameGeo, frameMat);
     group.add(frame);
 
     // Front Plaque Face Plate
-    const faceGeo = new THREE.PlaneGeometry(4.0, 1.55);
+    const faceGeo = new THREE.PlaneGeometry(4.6, 2.1);
     const face = new THREE.Mesh(faceGeo, plaqueMat);
-    face.position.set(0, 0, 0.07);
+    face.position.set(0, 0, 0.08);
     group.add(face);
 
     return group;
@@ -1399,20 +1557,23 @@ export class IslandWorld3D {
     if (this.candyCaneTexture) return this.candyCaneTexture;
 
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
+    canvas.width = 256;
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
     if (ctx) {
+      // Crisp snow-white base
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, 128, 512);
+      ctx.fillRect(0, 0, 256, 512);
 
+      // Bold, thick holiday crimson stripes spaced further apart
       ctx.fillStyle = '#dc2626';
-      const stripeWidth = 32;
-      for (let y = -512; y < 1024; y += stripeWidth * 2) {
+      const stripeWidth = 68;
+      const stripeStep = 170;
+      for (let y = -512; y < 1024; y += stripeStep) {
         ctx.beginPath();
         ctx.moveTo(0, y);
-        ctx.lineTo(128, y + 128);
-        ctx.lineTo(128, y + 128 + stripeWidth);
+        ctx.lineTo(256, y + 256);
+        ctx.lineTo(256, y + 256 + stripeWidth);
         ctx.lineTo(0, y + stripeWidth);
         ctx.closePath();
         ctx.fill();
@@ -1422,7 +1583,7 @@ export class IslandWorld3D {
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1, 4);
+    texture.repeat.set(1, 1.8);
     this.candyCaneTexture = texture;
     return texture;
   }
@@ -1447,7 +1608,7 @@ export class IslandWorld3D {
     );
     path.add(arc);
 
-    const tubeGeo = new THREE.TubeGeometry(path, 32, 0.42, 12, false);
+    const tubeGeo = new THREE.TubeGeometry(path, 32, 0.48, 12, false);
     const tubeMesh = new THREE.Mesh(tubeGeo, caneMat);
     tubeMesh.castShadow = true;
     cane.add(tubeMesh);
@@ -1479,33 +1640,33 @@ export class IslandWorld3D {
 
   /**
    * High-mounted, high-visibility Roof Signboard.
-   * All signs face SOUTH (+Z, rotation.y = 0) so they are 100% readable from the camera!
+   * Scaled up to be extra prominent, crisp, and 100% visible from camera facing SOUTH!
    */
   private createRoofSign(title: string, subtitle: string): THREE.Group {
     const sign = new THREE.Group();
 
     // Dual Roof Mounting Struts
     const strutMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 });
-    const strutGeo = new THREE.BoxGeometry(0.3, 2.0, 0.3);
+    const strutGeo = new THREE.BoxGeometry(0.35, 2.2, 0.35);
     const sL = new THREE.Mesh(strutGeo, strutMat);
-    sL.position.set(-2.5, -0.6, 0);
+    sL.position.set(-3.2, -0.7, 0);
     sign.add(sL);
     const sR = new THREE.Mesh(strutGeo, strutMat);
-    sR.position.set(2.5, -0.6, 0);
+    sR.position.set(3.2, -0.7, 0);
     sign.add(sR);
 
-    // Main Wooden Backing
-    const boardGeo = new THREE.BoxGeometry(6.6, 2.8, 0.3);
+    // Main Wooden Backing (Enlarged)
+    const boardGeo = new THREE.BoxGeometry(8.4, 3.4, 0.35);
     const boardMat = new THREE.MeshStandardMaterial({ color: 0x543310, roughness: 0.8 });
     const board = new THREE.Mesh(boardGeo, boardMat);
     board.castShadow = true;
     sign.add(board);
 
     // Snowy Gabled Roof Ridge Trim
-    const snowCapGeo = new THREE.BoxGeometry(7.0, 0.45, 0.6);
+    const snowCapGeo = new THREE.BoxGeometry(8.8, 0.5, 0.65);
     const snowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.9 });
     const snowCap = new THREE.Mesh(snowCapGeo, snowMat);
-    snowCap.position.y = 1.45;
+    snowCap.position.y = 1.75;
     sign.add(snowCap);
 
     // Crisp Canvas Texture for High-Resolution Text (512x256)
@@ -1535,60 +1696,60 @@ export class IslandWorld3D {
       ctx.roundRect(22, 22, 468, 212, 12);
       ctx.stroke();
 
-      // Title
+      // Title - Large bold high-contrast font
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 38px sans-serif';
+      ctx.font = '900 44px sans-serif';
       ctx.textAlign = 'center';
       ctx.shadowColor = 'rgba(0,0,0,0.7)';
       ctx.shadowBlur = 8;
-      ctx.fillText(title, 256, 96);
+      ctx.fillText(title, 256, 94);
 
       // Subtitle
       ctx.fillStyle = '#fef08a';
-      ctx.font = 'bold 25px sans-serif';
+      ctx.font = 'bold 28px sans-serif';
       ctx.shadowBlur = 6;
       ctx.fillText(subtitle, 256, 172);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
     const textMat = new THREE.MeshBasicMaterial({ map: texture });
-    const textPlate = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 2.65), textMat);
-    textPlate.position.set(0, 0, 0.17);
+    const textPlate = new THREE.Mesh(new THREE.PlaneGeometry(8.2, 3.2), textMat);
+    textPlate.position.set(0, 0, 0.2);
     sign.add(textPlate);
 
     return sign;
   }
 
   /**
-   * Ground Signpost, dual-sided, facing SOUTH (+Z).
+   * Ground Signpost, dual-sided, facing SOUTH (+Z), enlarged and prominent.
    */
   private createSignpost(title: string, subtitle: string): THREE.Group {
     const sign = new THREE.Group();
 
     // Dual Side Posts
     const postMat = new THREE.MeshStandardMaterial({ color: 0x543310, roughness: 0.85 });
-    const postGeo = new THREE.CylinderGeometry(0.24, 0.28, 4.8, 12);
+    const postGeo = new THREE.CylinderGeometry(0.28, 0.32, 5.2, 12);
 
     const postL = new THREE.Mesh(postGeo, postMat);
-    postL.position.set(-2.6, 2.4, -0.12);
+    postL.position.set(-3.2, 2.6, -0.14);
     sign.add(postL);
 
     const postR = new THREE.Mesh(postGeo, postMat);
-    postR.position.set(2.6, 2.4, -0.12);
+    postR.position.set(3.2, 2.6, -0.14);
     sign.add(postR);
 
-    // Main Wooden Signboard Backing
-    const boardGeo = new THREE.BoxGeometry(5.0, 2.2, 0.24);
+    // Main Wooden Signboard Backing (Enlarged)
+    const boardGeo = new THREE.BoxGeometry(6.6, 2.8, 0.28);
     const boardMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
     const board = new THREE.Mesh(boardGeo, boardMat);
-    board.position.set(0, 3.4, 0);
+    board.position.set(0, 3.8, 0);
     sign.add(board);
 
     // Snowy Gabled Roof Trim on top
-    const roofGeo = new THREE.BoxGeometry(5.4, 0.35, 0.55);
+    const roofGeo = new THREE.BoxGeometry(7.0, 0.42, 0.6);
     const snowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.9 });
     const roof = new THREE.Mesh(roofGeo, snowMat);
-    roof.position.set(0, 4.55, 0);
+    roof.position.set(0, 5.25, 0);
     sign.add(roof);
 
     // Canvas Texture
@@ -1618,72 +1779,135 @@ export class IslandWorld3D {
       ctx.stroke();
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = '900 36px sans-serif';
+      ctx.font = '900 42px sans-serif';
       ctx.textAlign = 'center';
       ctx.shadowColor = 'rgba(0,0,0,0.6)';
       ctx.shadowBlur = 6;
       ctx.fillText(title, 256, 92);
 
       ctx.fillStyle = '#fef08a';
-      ctx.font = 'bold 24px sans-serif';
+      ctx.font = 'bold 26px sans-serif';
       ctx.shadowBlur = 4;
-      ctx.fillText(subtitle, 256, 165);
+      ctx.fillText(subtitle, 256, 168);
     }
 
     const texture = new THREE.CanvasTexture(canvas);
     const textMat = new THREE.MeshBasicMaterial({ map: texture });
 
     // Front text plate
-    const textPlateFront = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 2.05), textMat);
-    textPlateFront.position.set(0, 3.4, 0.13);
+    const textPlateFront = new THREE.Mesh(new THREE.PlaneGeometry(6.3, 2.6), textMat);
+    textPlateFront.position.set(0, 3.8, 0.16);
     sign.add(textPlateFront);
 
     return sign;
   }
 
+  /**
+   * Builds completely unburied, cute 3D Penguins that freely wander across town paths!
+   */
   private buildPenguins(): void {
-    const penguinPositions = [
-      new THREE.Vector3(-15, 1.8, -12),
-      new THREE.Vector3(22, 1.8, -8),
-      new THREE.Vector3(14, 1.8, 18),
-      new THREE.Vector3(-20, 1.8, 12)
+    const startPositions = [
+      new THREE.Vector3(-14, 1.8, -8),
+      new THREE.Vector3(12, 1.8, -6),
+      new THREE.Vector3(-10, 1.8, 12),
+      new THREE.Vector3(10, 1.8, 14),
+      new THREE.Vector3(-18, 1.8, 4),
+      new THREE.Vector3(16, 1.8, 6)
     ];
 
-    penguinPositions.forEach((pos, idx) => {
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+    const orangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.5 });
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.1 });
+    const sparkleMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+    startPositions.forEach((pos, idx) => {
       const pGroup = new THREE.Group();
       pGroup.position.copy(pos);
 
-      // Body (Black Egg)
-      const bodyGeo = new THREE.SphereGeometry(0.8, 12, 12);
-      const blackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3 });
+      // Body (Plump Egg sitting fully atop the snow/cobblestone at y = 1.0)
+      const bodyGeo = new THREE.SphereGeometry(0.75, 14, 14);
       const body = new THREE.Mesh(bodyGeo, blackMat);
       body.scale.set(0.9, 1.3, 0.85);
       body.position.y = 1.0;
+      body.castShadow = true;
       pGroup.add(body);
 
       // White Belly
-      const bellyGeo = new THREE.SphereGeometry(0.65, 12, 12);
-      const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+      const bellyGeo = new THREE.SphereGeometry(0.62, 12, 12);
       const belly = new THREE.Mesh(bellyGeo, whiteMat);
       belly.scale.set(0.75, 1.1, 0.75);
-      belly.position.set(0, 0.9, 0.35);
+      belly.position.set(0, 0.95, 0.35);
       pGroup.add(belly);
 
       // Beak
       const beakGeo = new THREE.ConeGeometry(0.18, 0.4, 8);
-      const orangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316 });
       const beak = new THREE.Mesh(beakGeo, orangeMat);
       beak.rotation.x = Math.PI / 2;
       beak.position.set(0, 1.45, 0.8);
       pGroup.add(beak);
 
+      // Big Villager Eyes & Sparkles
+      const eyeGeo = new THREE.SphereGeometry(0.09, 8, 8);
+      const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+      eyeL.position.set(-0.22, 1.55, 0.65);
+      pGroup.add(eyeL);
+
+      const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+      eyeR.position.set(0.22, 1.55, 0.65);
+      pGroup.add(eyeR);
+
+      const sparkleGeo = new THREE.SphereGeometry(0.035, 6, 6);
+      const spL = new THREE.Mesh(sparkleGeo, sparkleMat);
+      spL.position.set(-0.20, 1.58, 0.72);
+      pGroup.add(spL);
+
+      const spR = new THREE.Mesh(sparkleGeo, sparkleMat);
+      spR.position.set(0.24, 1.58, 0.72);
+      pGroup.add(spR);
+
+      // Flippers
+      const flipperGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.9, 6);
+      const flipperL = new THREE.Mesh(flipperGeo, blackMat);
+      flipperL.position.set(-0.75, 1.0, 0);
+      flipperL.rotation.z = 0.4;
+      pGroup.add(flipperL);
+
+      const flipperR = new THREE.Mesh(flipperGeo, blackMat);
+      flipperR.position.set(0.75, 1.0, 0);
+      flipperR.rotation.z = -0.4;
+      pGroup.add(flipperR);
+
+      // Orange Webbed Feet - Perfectly perched at y = 0.06 on top of snow!
+      const footGeo = new THREE.BoxGeometry(0.32, 0.12, 0.45);
+      const footL = new THREE.Mesh(footGeo, orangeMat);
+      footL.position.set(-0.35, 0.06, 0.15);
+      pGroup.add(footL);
+
+      const footR = new THREE.Mesh(footGeo, orangeMat);
+      footR.position.set(0.35, 0.06, 0.15);
+      pGroup.add(footR);
+
       this.scene.add(pGroup);
+
+      const randomTarget = new THREE.Vector3(
+        (Math.random() - 0.5) * 32,
+        1.8,
+        (Math.random() - 0.5) * 30
+      );
+
       this.animatedPenguins.push({
         group: pGroup,
-        basePos: pos.clone(),
-        angle: (idx / 4) * Math.PI * 2,
-        speed: 0.6 + idx * 0.15,
-        waddle: 0
+        currentPos: pos.clone(),
+        targetPos: randomTarget,
+        speed: 1.4 + (idx % 3) * 0.35,
+        waddlePhase: Math.random() * Math.PI * 2,
+        pauseTimer: Math.random() * 2.0,
+        isPausing: false,
+        footL,
+        footR,
+        flipperL,
+        flipperR
       });
     });
   }
@@ -1858,7 +2082,7 @@ export class IslandWorld3D {
       },
       {
         id: 'lake',
-        pos: new THREE.Vector3(24, 1.8, 4),
+        pos: new THREE.Vector3(26, 1.8, 4),
         radius: 8,
         title: '🪷 Henry-Lake',
         actionText: 'Tap or Press Space to Play Lake'
@@ -1886,7 +2110,7 @@ export class IslandWorld3D {
       },
       {
         id: 'board',
-        pos: new THREE.Vector3(22, 1.8, 2),
+        pos: new THREE.Vector3(-14, 1.8, 10),
         radius: 7,
         title: '📌 Bulletin Board',
         actionText: 'Tap or Press Space for Messages'
@@ -2273,18 +2497,74 @@ export class IslandWorld3D {
       posAttr.needsUpdate = true;
     }
 
-    // 6. Penguins Waddling Animation
-    this.animatedPenguins.forEach(p => {
-      p.angle += delta * p.speed * 0.3;
-      p.group.position.x = p.basePos.x + Math.cos(p.angle) * 3.5;
-      p.group.position.z = p.basePos.z + Math.sin(p.angle) * 3.5;
-      p.group.rotation.y = -p.angle + Math.PI / 2;
-
-      p.waddle += delta * 8;
-      p.group.rotation.z = Math.sin(p.waddle) * 0.12;
+    // 6. Lily Pads Bobbing & Lake Water Shimmer
+    this.animatedLilyPads.forEach(pad => {
+      pad.mesh.position.y = pad.baseY + Math.sin(time * 2 + pad.phase) * 0.04;
+      pad.mesh.rotation.y += delta * pad.rotSpeed;
     });
 
-    // 7. Render
+    if (this.lakeWaterMesh) {
+      const wMat = this.lakeWaterMesh.material as THREE.MeshStandardMaterial;
+      wMat.opacity = 0.82 + Math.sin(time * 1.5) * 0.05;
+    }
+
+    // 7. Lively Penguins Wandering AI
+    this.animatedPenguins.forEach(p => {
+      if (p.isPausing) {
+        p.pauseTimer -= delta;
+        p.footL.rotation.x = 0;
+        p.footR.rotation.x = 0;
+        p.group.rotation.z = 0;
+        p.group.position.y = 1.8;
+        if (p.pauseTimer <= 0) {
+          p.isPausing = false;
+          // Pick new random wander target within plaza/paths
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 5 + Math.random() * 18;
+          let tx = Math.cos(angle) * dist;
+          let tz = Math.sin(angle) * dist;
+          // Avoid walking into lake (x > 22) or off island
+          if (tx > 20) tx = 18;
+          if (tz < -18) tz = -16;
+          p.targetPos.set(tx, 1.8, tz);
+        }
+      } else {
+        const toTarget = new THREE.Vector3().subVectors(p.targetPos, p.currentPos);
+        toTarget.y = 0;
+        const distToTarget = toTarget.length();
+
+        if (distToTarget < 0.8) {
+          p.isPausing = true;
+          p.pauseTimer = 1.8 + Math.random() * 3.0;
+        } else {
+          toTarget.normalize();
+          p.currentPos.addScaledVector(toTarget, p.speed * delta);
+          p.group.position.x = p.currentPos.x;
+          p.group.position.z = p.currentPos.z;
+
+          // Smooth turning towards direction of movement
+          const targetHeading = Math.atan2(toTarget.x, toTarget.z);
+          p.group.rotation.y = THREE.MathUtils.lerp(
+            p.group.rotation.y,
+            targetHeading,
+            0.12
+          );
+
+          // Waddle & footstep animation
+          p.waddlePhase += delta * 7.5;
+          p.group.rotation.z = Math.sin(p.waddlePhase) * 0.14;
+          p.group.position.y = 1.8 + Math.abs(Math.sin(p.waddlePhase)) * 0.08;
+
+          p.footL.rotation.x = Math.sin(p.waddlePhase) * 0.35;
+          p.footR.rotation.x = -Math.sin(p.waddlePhase) * 0.35;
+
+          p.flipperL.rotation.z = 0.4 + Math.sin(p.waddlePhase) * 0.25;
+          p.flipperR.rotation.z = -0.4 - Math.sin(p.waddlePhase) * 0.25;
+        }
+      }
+    });
+
+    // 8. Render
     this.renderer.render(this.scene, this.camera);
   };
 
