@@ -825,11 +825,6 @@ export class IslandWorld3D {
     const centerGroup = new THREE.Group();
     centerGroup.position.set(0, 1.8, 0);
 
-    // Grand Holiday Christmas Tree in Town Center Plaza (0, 1.8, 4)
-    const grandTree = this.createChristmasTree(1.8);
-    grandTree.position.set(0, 0, 4);
-    centerGroup.add(grandTree);
-
     // Podium Pedestals placed center-north in plaza at z = -14
     const podiumPillars = [
       { rank: 2, x: -7, h: 2.2, color: 0x94a3b8 }, // 2nd Silver
