@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { AVATAR_ROSTER } from '../data/avatars';
-import { familyStore } from '../state/familyStore';
+import { familyStore, LeaderboardEntry } from '../state/familyStore';
 import { GameType } from '../types';
 import { playSound } from '../utils/audio';
 
@@ -30,6 +30,8 @@ export class IslandWorld3D {
   private snowParticles!: THREE.Points;
   private animatedPenguins: { group: THREE.Group; basePos: THREE.Vector3; angle: number; speed: number; waddle: number }[] = [];
   private podiumSnowmenGroups: THREE.Group[] = [];
+  private podiumPlaquesGroups: THREE.Group[] = [];
+  private candyCaneTexture: THREE.CanvasTexture | null = null;
 
   // Interactive targets
   private interactivePortals: {
@@ -276,9 +278,10 @@ export class IslandWorld3D {
     door.position.set(0, 2.5, 7.05);
     wordleGroup.add(door);
 
-    // Front Porch Signpost
+    // Front Porch Signpost (positioned beside entrance path, facing player)
     const signGroup = this.createSignpost('WORDLE LODGE', '5-Letter Daily');
-    signGroup.position.set(0, 0, 9);
+    signGroup.position.set(-7, 0, 11);
+    signGroup.rotation.y = 0.2;
     wordleGroup.add(signGroup);
 
     this.scene.add(wordleGroup);
@@ -320,9 +323,34 @@ export class IslandWorld3D {
       lakeGroup.add(pad);
     }
 
-    // Lake Signpost
+    // Lakeside Wooden Viewing Pier (extending west toward Town Center)
+    const pierDeckGeo = new THREE.BoxGeometry(10, 0.5, 14);
+    const pierMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
+    const pierDeck = new THREE.Mesh(pierDeckGeo, pierMat);
+    pierDeck.position.set(-22, 0.25, 0);
+    pierDeck.receiveShadow = true;
+    lakeGroup.add(pierDeck);
+
+    // Wooden Railing along the lake edge (blocks walking into the ice/water)
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 });
+    const railGeo = new THREE.BoxGeometry(0.3, 1.4, 14);
+    const railing = new THREE.Mesh(railGeo, railMat);
+    railing.position.set(-17.2, 0.9, 0);
+    railing.castShadow = true;
+    lakeGroup.add(railing);
+
+    // Festive Wreath on the pier railing
+    const wreathGeo = new THREE.TorusGeometry(0.9, 0.3, 8, 16);
+    const wreathMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 });
+    const wreath = new THREE.Mesh(wreathGeo, wreathMat);
+    wreath.position.set(-17.4, 1.1, 0);
+    wreath.rotation.y = Math.PI / 2;
+    lakeGroup.add(wreath);
+
+    // Lake Signpost (standing proudly on the dry wooden dock, facing West towards Town Center)
     const lakeSign = this.createSignpost('HENRY LAKE', '120s Word Scramble');
-    lakeSign.position.set(-18, 0, 2);
+    lakeSign.position.set(-25, 0, 0);
+    lakeSign.rotation.y = -Math.PI / 2;
     lakeGroup.add(lakeSign);
 
     this.scene.add(lakeGroup);
@@ -373,9 +401,10 @@ export class IslandWorld3D {
     caneR.scale.set(1.5, 1.5, 1.5);
     quizGroup.add(caneR);
 
-    // Quiz Signpost
+    // Quiz Signpost (facing East toward Town Center)
     const quizSign = this.createSignpost('QUIZ LODGE', '60s Teen Trivia');
-    quizSign.position.set(18, 0, 2);
+    quizSign.position.set(16, 0, 0);
+    quizSign.rotation.y = Math.PI / 2;
     quizGroup.add(quizSign);
 
     this.scene.add(quizGroup);
@@ -453,33 +482,38 @@ export class IslandWorld3D {
     bird.position.set(0, 7.1, 0);
     boardGroup.add(bird);
 
-    // Sign banner above board
+    // Signpost positioned beside the bulletin board (not blocking corkboard notes)
     const boardBanner = this.createSignpost('BULLETIN BOARD', 'Family Messages 💬');
-    boardBanner.position.set(0, 0, 1.5);
-    boardBanner.scale.set(0.8, 0.8, 0.8);
+    boardBanner.position.set(-4.5, 0, 1.2);
+    boardBanner.rotation.y = 0.25;
+    boardBanner.scale.set(0.85, 0.85, 0.85);
     boardGroup.add(boardBanner);
 
     centerGroup.add(boardGroup);
     this.scene.add(centerGroup);
 
-    // Build the dynamic 3D snowmen on the podium
+    // Build the dynamic 3D snowmen and leader score plaques on the podium
     this.updatePodiumSnowmen();
   }
 
   private updatePodiumSnowmen(): void {
-    // Remove existing snowmen
+    // Remove existing snowmen and plaques
     this.podiumSnowmenGroups.forEach(g => this.scene.remove(g));
     this.podiumSnowmenGroups = [];
+    this.podiumPlaquesGroups.forEach(g => this.scene.remove(g));
+    this.podiumPlaquesGroups = [];
 
     const leaderboard = familyStore.getLeaderboard();
     const slots = [
-      { rank: 2, x: -7, h: 2.2 },
-      { rank: 1, x: 0, h: 3.4 },
-      { rank: 3, x: 7, h: 1.6 }
+      { rank: 2, x: -7, h: 2.2, color: '#94a3b8', medal: '🥈', title: '2ND PLACE' },
+      { rank: 1, x: 0, h: 3.4, color: '#f59e0b', medal: '🥇', title: '1ST PLACE' },
+      { rank: 3, x: 7, h: 1.6, color: '#b45309', medal: '🥉', title: '3RD PLACE' }
     ];
 
     slots.forEach(slot => {
       const entry = leaderboard.find(l => l.rank === slot.rank);
+
+      // 1. Dynamic Snowman on top of the pedestal
       if (entry) {
         // Base scale scales with average score
         const scoreScale = THREE.MathUtils.clamp(0.8 + (entry.stats.averageScore / 10) * 0.4, 0.7, 1.4);
@@ -488,7 +522,95 @@ export class IslandWorld3D {
         this.scene.add(smGroup);
         this.podiumSnowmenGroups.push(smGroup);
       }
+
+      // 2. High-res Plaque with Leader Name and Score written directly on the pedestal base!
+      const plaque = this.createPodiumPlaque(slot, entry);
+      plaque.position.set(slot.x, 1.8 + slot.h * 0.5, -6 + 3.45);
+      this.scene.add(plaque);
+      this.podiumPlaquesGroups.push(plaque);
     });
+  }
+
+  private createPodiumPlaque(
+    slot: { rank: number; color: string; medal: string; title: string },
+    entry?: LeaderboardEntry
+  ): THREE.Group {
+    const group = new THREE.Group();
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Rounded slate background with metallic border
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.roundRect(8, 8, 496, 240, 24);
+      ctx.fill();
+
+      // Border matching rank medal
+      ctx.strokeStyle = slot.color;
+      ctx.lineWidth = 10;
+      ctx.stroke();
+
+      // Inner accent outline
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(18, 18, 476, 220);
+
+      // Rank Title Header with medal
+      ctx.fillStyle = slot.color;
+      ctx.font = 'bold 28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${slot.medal} ${slot.title}`, 256, 54);
+
+      if (entry) {
+        // Player Name & Emoji
+        const av = AVATAR_ROSTER.find(a => a.id === entry.player.avatarId) || AVATAR_ROSTER[0];
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 38px sans-serif';
+        const displayName = `${av.emoji} ${entry.player.name}`;
+        ctx.fillText(displayName, 256, 118);
+
+        // Score summary: Average score & Today score
+        ctx.fillStyle = '#fef08a';
+        ctx.font = 'bold 26px sans-serif';
+        ctx.fillText(`Avg: ${entry.stats.averageScore.toFixed(1)} pts`, 256, 172);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '20px sans-serif';
+        ctx.fillText(`Today: ${entry.stats.todayScore} pts • ${entry.stats.daysPlayed} days`, 256, 218);
+      } else {
+        // Unclaimed slot
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.fillText('— Unclaimed —', 256, 130);
+
+        ctx.fillStyle = '#64748b';
+        ctx.font = '22px sans-serif';
+        ctx.fillText('Play games to take podium!', 256, 185);
+      }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const plaqueMat = new THREE.MeshBasicMaterial({ map: texture });
+
+    // Metallic frame backing
+    const frameGeo = new THREE.BoxGeometry(4.2, 1.7, 0.12);
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: slot.rank === 1 ? 0xf59e0b : slot.rank === 2 ? 0x94a3b8 : 0xb45309,
+      roughness: 0.4,
+      metalness: 0.6
+    });
+    const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+    group.add(frameMesh);
+
+    const plateGeo = new THREE.PlaneGeometry(4.05, 1.58);
+    const plateMesh = new THREE.Mesh(plateGeo, plaqueMat);
+    plateMesh.position.z = 0.08;
+    group.add(plateMesh);
+
+    return group;
   }
 
   private create3DSnowman(scale: number, isWinner: boolean): THREE.Group {
@@ -814,20 +936,88 @@ export class IslandWorld3D {
     return tree;
   }
 
+  private getCandyCaneTexture(): THREE.CanvasTexture {
+    if (this.candyCaneTexture) return this.candyCaneTexture;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      // Crisp white candy base
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 256, 256);
+
+      // Bright festive peppermint red diagonal stripes
+      ctx.fillStyle = '#dc2626';
+      const stripeWidth = 28;
+      for (let x = -256; x < 512; x += stripeWidth * 2) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + stripeWidth, 0);
+        ctx.lineTo(x + stripeWidth + 256, 256);
+        ctx.lineTo(x + 256, 256);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Darker red accent pinstripe for authentic candy cane gloss look
+      ctx.fillStyle = '#991b1b';
+      for (let x = -256; x < 512; x += stripeWidth * 2) {
+        ctx.beginPath();
+        ctx.moveTo(x - 6, 0);
+        ctx.lineTo(x - 3, 0);
+        ctx.lineTo(x - 3 + 256, 256);
+        ctx.lineTo(x - 6 + 256, 256);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 8);
+    this.candyCaneTexture = tex;
+    return tex;
+  }
+
   private createCandyCane(): THREE.Group {
     const cane = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5 });
-    const stemGeo = new THREE.CylinderGeometry(0.4, 0.4, 6, 12);
-    const stem = new THREE.Mesh(stemGeo, mat);
-    stem.position.y = 3;
-    stem.castShadow = true;
-    cane.add(stem);
 
-    const hookGeo = new THREE.TorusGeometry(1.2, 0.4, 10, 16, Math.PI);
-    const hook = new THREE.Mesh(hookGeo, mat);
-    hook.position.set(1.2, 6, 0);
-    hook.rotation.z = -Math.PI / 2;
-    cane.add(hook);
+    // Smooth continuous candy cane hook curve
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 3.8, 0),
+      new THREE.Vector3(0.08, 4.6, 0),
+      new THREE.Vector3(0.45, 5.4, 0),
+      new THREE.Vector3(1.15, 5.75, 0),
+      new THREE.Vector3(1.85, 5.3, 0),
+      new THREE.Vector3(2.05, 4.35, 0)
+    ]);
+
+    const caneGeo = new THREE.TubeGeometry(curve, 48, 0.36, 16, false);
+    const caneMat = new THREE.MeshStandardMaterial({
+      map: this.getCandyCaneTexture(),
+      roughness: 0.28,
+      metalness: 0.1
+    });
+    const caneMesh = new THREE.Mesh(caneGeo, caneMat);
+    caneMesh.castShadow = true;
+    cane.add(caneMesh);
+
+    // Rounded tip on the hook end
+    const tipGeo = new THREE.SphereGeometry(0.36, 12, 12);
+    const tipMesh = new THREE.Mesh(tipGeo, caneMat);
+    tipMesh.position.set(2.05, 4.35, 0);
+    cane.add(tipMesh);
+
+    // Snowy mound base
+    const snowGeo = new THREE.ConeGeometry(1.1, 0.45, 16);
+    const snowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.9 });
+    const snowBase = new THREE.Mesh(snowGeo, snowMat);
+    snowBase.position.y = 0.2;
+    cane.add(snowBase);
 
     return cane;
   }
@@ -861,48 +1051,92 @@ export class IslandWorld3D {
   private createSignpost(title: string, subtitle: string): THREE.Group {
     const sign = new THREE.Group();
 
-    // Wooden post
-    const postGeo = new THREE.CylinderGeometry(0.3, 0.3, 4.5, 8);
-    const postMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
-    const post = new THREE.Mesh(postGeo, postMat);
-    post.position.y = 2.25;
-    post.castShadow = true;
-    sign.add(post);
+    // Dual Side Posts (left & right) - avoids intersecting the signboard text!
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x543310, roughness: 0.85 });
+    const postGeo = new THREE.CylinderGeometry(0.24, 0.28, 4.8, 12);
 
-    // Board
-    const boardGeo = new THREE.BoxGeometry(5.5, 2.2, 0.4);
-    const boardMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.7 });
+    const postL = new THREE.Mesh(postGeo, postMat);
+    postL.position.set(-2.6, 2.4, -0.12);
+    postL.castShadow = true;
+    sign.add(postL);
+
+    const postR = new THREE.Mesh(postGeo, postMat);
+    postR.position.set(2.6, 2.4, -0.12);
+    postR.castShadow = true;
+    sign.add(postR);
+
+    // Main Wooden Signboard Backing
+    const boardGeo = new THREE.BoxGeometry(5.0, 2.2, 0.24);
+    const boardMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
     const board = new THREE.Mesh(boardGeo, boardMat);
-    board.position.y = 3.8;
+    board.position.set(0, 3.4, 0);
     board.castShadow = true;
     sign.add(board);
 
-    // Create Canvas Texture for Signboard Text
+    // Snowy Gabled Roof Trim on top
+    const roofGeo = new THREE.BoxGeometry(5.4, 0.35, 0.55);
+    const snowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.9 });
+    const roof = new THREE.Mesh(roofGeo, snowMat);
+    roof.position.set(0, 4.55, 0);
+    roof.castShadow = true;
+    sign.add(roof);
+
+    // Create Crisp Canvas Texture for Signboard Text (512 x 256)
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 128;
+    canvas.width = 512;
+    canvas.height = 256;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.fillStyle = '#b45309';
-      ctx.fillRect(0, 0, 256, 128);
-      ctx.strokeStyle = '#fef3c7';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(6, 6, 244, 116);
+      // Warm rustic holiday green gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0, '#14532d');
+      grad.addColorStop(1, '#052e16');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(8, 8, 496, 240, 20);
+      ctx.fill();
 
+      // Golden ornate double border
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.roundRect(12, 12, 488, 232, 16);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(22, 22, 468, 212, 12);
+      ctx.stroke();
+
+      // Title Text
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 24px sans-serif';
+      ctx.font = '900 36px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(title, 128, 52);
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(title, 256, 92);
 
+      // Subtitle Banner
       ctx.fillStyle = '#fef08a';
-      ctx.font = '16px sans-serif';
-      ctx.fillText(subtitle, 128, 88);
+      ctx.font = 'bold 24px sans-serif';
+      ctx.shadowBlur = 4;
+      ctx.fillText(subtitle, 256, 165);
     }
+
     const texture = new THREE.CanvasTexture(canvas);
     const textMat = new THREE.MeshBasicMaterial({ map: texture });
-    const textPlate = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 2.0), textMat);
-    textPlate.position.set(0, 3.8, 0.22);
-    sign.add(textPlate);
+
+    // Front text plate (positioned ahead of posts and board)
+    const textPlateFront = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 2.05), textMat);
+    textPlateFront.position.set(0, 3.4, 0.13);
+    sign.add(textPlateFront);
+
+    // Back text plate (readable from both directions)
+    const textPlateBack = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 2.05), textMat);
+    textPlateBack.position.set(0, 3.4, -0.13);
+    textPlateBack.rotation.y = Math.PI;
+    sign.add(textPlateBack);
 
     return sign;
   }
@@ -1001,6 +1235,62 @@ export class IslandWorld3D {
     head.castShadow = true;
     this.playerGroup.add(head);
 
+    // --- Animal Crossing Expressive Face Details ---
+    // Large Villager Eyes
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2 });
+    const eyeGeo = new THREE.SphereGeometry(0.12, 12, 12);
+
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeL.position.set(-0.28, 2.95, 0.78);
+    eyeL.scale.set(1.0, 1.35, 0.35);
+    this.playerGroup.add(eyeL);
+
+    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeR.position.set(0.28, 2.95, 0.78);
+    eyeR.scale.set(1.0, 1.35, 0.35);
+    this.playerGroup.add(eyeR);
+
+    // Sparkle Highlights in Eyes
+    const sparkleMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const sparkleGeo = new THREE.SphereGeometry(0.04, 8, 8);
+
+    const spL = new THREE.Mesh(sparkleGeo, sparkleMat);
+    spL.position.set(-0.24, 3.02, 0.83);
+    this.playerGroup.add(spL);
+
+    const spR = new THREE.Mesh(sparkleGeo, sparkleMat);
+    spR.position.set(0.32, 3.02, 0.83);
+    this.playerGroup.add(spR);
+
+    // Cute Button Nose
+    const noseMat = new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.4 });
+    const noseGeo = new THREE.SphereGeometry(0.09, 10, 10);
+    const nose = new THREE.Mesh(noseGeo, noseMat);
+    nose.position.set(0, 2.82, 0.84);
+    this.playerGroup.add(nose);
+
+    // Rosy Pink Cheeks (Blush)
+    const blushMat = new THREE.MeshBasicMaterial({ color: 0xf472b6, transparent: true, opacity: 0.7 });
+    const blushGeo = new THREE.CircleGeometry(0.14, 16);
+
+    const blushL = new THREE.Mesh(blushGeo, blushMat);
+    blushL.position.set(-0.48, 2.75, 0.72);
+    blushL.rotation.y = -0.35;
+    this.playerGroup.add(blushL);
+
+    const blushR = new THREE.Mesh(blushGeo, blushMat);
+    blushR.position.set(0.48, 2.75, 0.72);
+    blushR.rotation.y = 0.35;
+    this.playerGroup.add(blushR);
+
+    // Friendly Smile
+    const smileGeo = new THREE.TorusGeometry(0.12, 0.025, 8, 12, Math.PI);
+    const smileMat = new THREE.MeshBasicMaterial({ color: 0x831843 });
+    const smile = new THREE.Mesh(smileGeo, smileMat);
+    smile.position.set(0, 2.68, 0.83);
+    smile.rotation.x = Math.PI * 0.1;
+    this.playerGroup.add(smile);
+
     // Bobble Hat
     const hatGeo = new THREE.ConeGeometry(0.9, 1.2, 16);
     const hatMat = new THREE.MeshStandardMaterial({ color: hatColor, roughness: 0.7 });
@@ -1046,35 +1336,35 @@ export class IslandWorld3D {
     this.interactivePortals = [
       {
         id: 'wordle',
-        pos: new THREE.Vector3(0, 1.8, -42),
-        radius: 9,
+        pos: new THREE.Vector3(0, 1.8, -40),
+        radius: 8,
         title: '🟩 Henry-Wordle',
         actionText: 'Tap or Press Space to Play Wordle'
       },
       {
         id: 'lake',
-        pos: new THREE.Vector3(42, 1.8, 4),
-        radius: 12,
+        pos: new THREE.Vector3(24, 1.8, 4),
+        radius: 8,
         title: '🪷 Henry-Lake',
         actionText: 'Tap or Press Space to Play Lake'
       },
       {
         id: 'quiz',
-        pos: new THREE.Vector3(-42, 1.8, 4),
-        radius: 10,
+        pos: new THREE.Vector3(-40, 1.8, 4),
+        radius: 8,
         title: '🧠 Henry-Quiz',
         actionText: 'Tap or Press Space to Play Quiz'
       },
       {
         id: 'podium',
-        pos: new THREE.Vector3(0, 1.8, -4),
+        pos: new THREE.Vector3(0, 1.8, -3),
         radius: 7,
         title: '🏆 Snowman Podium',
         actionText: 'Tap or Press Space for Leaderboard'
       },
       {
         id: 'board',
-        pos: new THREE.Vector3(10, 1.8, -2),
+        pos: new THREE.Vector3(9, 1.8, -1),
         radius: 6,
         title: '📌 Bulletin Board',
         actionText: 'Tap or Press Space for Messages'
@@ -1094,9 +1384,26 @@ export class IslandWorld3D {
     });
   }
 
+  private isModalOpen(): boolean {
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+      return true;
+    }
+    const modalHost = document.getElementById('modal-host');
+    if (modalHost && modalHost.children.length > 0) {
+      return true;
+    }
+    const msgModal = document.getElementById('message-board-modal');
+    if (msgModal && !msgModal.classList.contains('hidden')) {
+      return true;
+    }
+    return false;
+  }
+
   private setupInputs(): void {
     // Keyboard
     window.addEventListener('keydown', (e) => {
+      if (this.isModalOpen()) return;
       this.keysDown[e.key.toLowerCase()] = true;
       if (e.key === ' ' || e.key === 'Enter') {
         if (this.currentActiveTarget) {
@@ -1107,6 +1414,7 @@ export class IslandWorld3D {
     });
 
     window.addEventListener('keyup', (e) => {
+      if (this.isModalOpen()) return;
       this.keysDown[e.key.toLowerCase()] = false;
     });
 
@@ -1120,6 +1428,7 @@ export class IslandWorld3D {
 
     // Click / Tap on 3D objects
     this.container.addEventListener('pointerdown', (e) => {
+      if (this.isModalOpen()) return;
       // Raycast click to interact with portals
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -1153,6 +1462,7 @@ export class IslandWorld3D {
   }
 
   private triggerInteraction(id: string): void {
+    if (this.isModalOpen()) return;
     playSound('buttonClick');
     if (id === 'wordle' || id === 'lake' || id === 'quiz') {
       this.callbacks.onTriggerGame(id as GameType);
@@ -1194,6 +1504,14 @@ export class IslandWorld3D {
         const angle = Math.atan2(this.playerPos.z, this.playerPos.x);
         this.playerPos.x = Math.cos(angle) * 75;
         this.playerPos.z = Math.sin(angle) * 75;
+      }
+
+      // Prevent player from walking into Henry Lake water (center: 48, 4, radius: 20)
+      const distToLake = Math.hypot(this.playerPos.x - 48, this.playerPos.z - 4);
+      if (distToLake < 21.0) {
+        const angle = Math.atan2(this.playerPos.z - 4, this.playerPos.x - 48);
+        this.playerPos.x = 48 + Math.cos(angle) * 21.0;
+        this.playerPos.z = 4 + Math.sin(angle) * 21.0;
       }
 
       this.playerGroup.position.copy(this.playerPos);

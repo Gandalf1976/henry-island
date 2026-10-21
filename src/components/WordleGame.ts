@@ -36,10 +36,16 @@ export class WordleGame {
     this.keydownHandler = (e: KeyboardEvent) => {
       if (this.isGameOver) return;
       if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
         this.submitGuess();
       } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        e.stopPropagation();
         this.deleteLetter();
       } else if (/^[a-zA-Z]$/.test(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
         this.addLetter(e.key.toUpperCase());
       }
     };

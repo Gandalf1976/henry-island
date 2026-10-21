@@ -47,12 +47,20 @@ export class LakeGame {
     this.keydownHandler = (e: KeyboardEvent) => {
       if (this.isGameOver) return;
       if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
         this.submitWord();
       } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        e.stopPropagation();
         this.popLastLetter();
       } else if (e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
         this.scramble();
       } else if (/^[a-zA-Z]$/.test(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
         const char = e.key.toUpperCase();
         this.selectLetterByChar(char);
       }

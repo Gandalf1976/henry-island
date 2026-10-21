@@ -171,6 +171,11 @@ class App {
   }
 
   private triggerGame(game: GameType): void {
+    // Prevent duplicate modals or re-triggering while a game/modal is already open
+    if (this.activeGameInstance || this.modalHost.children.length > 0) {
+      return;
+    }
+
     const activePlayer = familyStore.getActivePlayer();
     const today = getTodayDateKey();
 
@@ -203,14 +208,17 @@ class App {
   }
 
   private openAvatarModal(): void {
+    if (this.activeGameInstance || this.modalHost.children.length > 0) return;
     new AvatarModal(this.modalHost, () => this.closeModal());
   }
 
   private openPodiumModal(): void {
+    if (this.activeGameInstance || this.modalHost.children.length > 0) return;
     new SnowmanPodiumModal(this.modalHost, () => this.closeModal());
   }
 
   private openMessageBoardModal(): void {
+    if (this.activeGameInstance || this.modalHost.children.length > 0) return;
     new MessageBoardModal(() => {
       this.updateHeaderBadge();
     }).show();
