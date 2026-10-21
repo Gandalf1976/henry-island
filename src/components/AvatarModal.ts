@@ -29,7 +29,8 @@ export class AvatarModal {
     const gamesList = [
       { id: 'wordle', name: 'Henry-Wordle', desc: 'Wordle Cottage (5-Letter Daily)', icon: '🟩' },
       { id: 'lake', name: 'Henry-Lake', desc: 'Frozen Lake (120s 9-Letter Scramble)', icon: '🪷' },
-      { id: 'quiz', name: 'Henry-Quiz', desc: 'Quiz Lodge (60s Teen Trivia)', icon: '🧠' }
+      { id: 'quiz', name: 'Henry-Quiz', desc: 'Quiz Lodge (60s Teen Trivia)', icon: '🧠' },
+      { id: 'wordLadder', name: 'Henry Word Ladder', desc: 'Mountain Lodge (4-Letter Word Steps)', icon: '🪜' }
     ];
 
     this.container.innerHTML = `

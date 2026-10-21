@@ -6,7 +6,7 @@ const SYNC_TOPIC = 'henry_island_gandalf1976_v2';
 const NTFY_BASE = 'https://ntfy.sh/' + SYNC_TOPIC;
 
 export interface LiveSyncPayload {
-  type: 'score_update' | 'new_message' | 'player_update' | 'full_sync';
+  type: 'score_update' | 'new_message' | 'player_update' | 'full_sync' | 'game_reset';
   senderDeviceId: string;
   senderName: string;
   timestamp: number;
@@ -162,6 +162,9 @@ class LiveSyncManager {
           } else if (payload.type === 'new_message') {
             playSound('closedSign');
             this.showToastNotification(`💬 New message from ${payload.senderName}!`);
+          } else if (payload.type === 'game_reset') {
+            playSound('snowStep');
+            this.showToastNotification(payload.announcement || '🔄 Puzzles reset by Dad to play again!');
           }
         }
       }

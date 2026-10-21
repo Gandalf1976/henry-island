@@ -66,6 +66,19 @@
           <span class="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-900 font-black text-[10px]" id="header-avatar-score">0 pts</span>
         </button>
 
+        <!-- Daily Scavenger Hunt Button -->
+        <button id="header-scavenger-btn" title="Daily Scavenger Hunt (Find 5 holiday items for +2 pts)" class="flex items-center gap-1 bg-emerald-700/90 hover:bg-emerald-600 text-emerald-50 font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-emerald-400 transition transform active:scale-95">
+          <span>🧭</span>
+          <span class="hidden sm:inline">Hunt</span>
+          <span id="header-scavenger-badge" class="px-1.5 py-0.2 bg-emerald-400 text-slate-900 text-[10px] font-black rounded-full">0/5</span>
+        </button>
+
+        <!-- Dad Reset Day Button (Dad Only) -->
+        <button id="header-dad-reset-btn" title="Reset Today's Games (Dad Only)" class="hidden flex items-center gap-1 bg-red-600/90 hover:bg-red-500 text-white font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-red-400 transition transform active:scale-95 animate-pulse">
+          <span>🔄</span>
+          <span class="hidden sm:inline">Reset Day</span>
+        </button>
+
         <!-- Messages / Bulletin Board Button with Unread Badge -->
         <button id="header-messages-btn" title="Family Bulletin Board" class="flex items-center gap-1 bg-amber-600/90 hover:bg-amber-500 text-amber-50 font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-amber-400 transition transform active:scale-95">
           <span>💬</span>
@@ -96,11 +109,19 @@
     <main class="relative flex-1 w-full h-full overflow-hidden bg-sky-950">
       <div id="island-viewport" class="w-full h-full block"></div>
 
+      <!-- Toast Notification Container -->
+      <div id="toast-container" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none"></div>
+
       <!-- Fast Navigation Quick-Travel Dock (Bottom-Center) -->
-      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 sm:gap-2 bg-slate-900/90 backdrop-blur-md px-2.5 sm:px-3 py-1.5 rounded-2xl border-2 border-sky-400/60 shadow-2xl max-w-[95vw] overflow-x-auto">
+      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 sm:gap-1.5 bg-slate-900/90 backdrop-blur-md px-2.5 sm:px-3 py-1.5 rounded-2xl border-2 border-sky-400/60 shadow-2xl max-w-[95vw] overflow-x-auto">
         <button id="travel-wordle" class="px-2 sm:px-2.5 py-1 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-emerald-500 transition shrink-0">
           <span>🟩</span>
           <span class="hidden sm:inline">Wordle</span>
+        </button>
+
+        <button id="travel-ladder" class="px-2 sm:px-2.5 py-1 rounded-xl bg-amber-700/80 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-amber-500 transition shrink-0">
+          <span>🪜</span>
+          <span class="hidden sm:inline">Ladder</span>
         </button>
 
         <button id="travel-town" class="px-2 sm:px-2.5 py-1 rounded-xl bg-amber-600/80 hover:bg-amber-500 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-amber-400 transition shrink-0">
@@ -122,6 +143,22 @@
           <span>🧠</span>
           <span class="hidden sm:inline">Quiz</span>
         </button>
+
+        <button id="travel-elves" class="px-2 sm:px-2.5 py-1 rounded-xl bg-teal-800/80 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-teal-500 transition shrink-0">
+          <span>🧝</span>
+          <span class="hidden sm:inline">Elves</span>
+        </button>
+
+        <button id="travel-hearth" class="px-2 sm:px-2.5 py-1 rounded-xl bg-rose-900/80 hover:bg-rose-800 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-rose-500 transition shrink-0">
+          <span>🔥</span>
+          <span class="hidden sm:inline">Hearth</span>
+        </button>
+      </div>
+
+      <!-- Zoom In / Out Controls (Bottom Right) -->
+      <div class="absolute bottom-5 right-4 z-20 flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-2xl border-2 border-sky-400/60 shadow-2xl">
+        <button id="zoom-in-btn" title="Zoom In (+)" class="w-8 h-8 rounded-xl bg-sky-800/80 hover:bg-sky-700 active:scale-95 text-white font-black text-base flex items-center justify-center border border-sky-400/50 shadow transition">+</button>
+        <button id="zoom-out-btn" title="Zoom Out (−)" class="w-8 h-8 rounded-xl bg-sky-800/80 hover:bg-sky-700 active:scale-95 text-white font-black text-base flex items-center justify-center border border-sky-400/50 shadow transition">−</button>
       </div>
 
       <!-- Virtual Touch Joystick (Bottom Left, visible on mobile / touch) -->
@@ -132,6 +169,8 @@
         <span>🎮 WASD / Arrows to Walk</span>
         <span>•</span>
         <span>Space to Interact</span>
+        <span>•</span>
+        <span>Scroll to Zoom</span>
         <span>•</span>
         <span>Live Cloud Sync 🟢</span>
       </div>

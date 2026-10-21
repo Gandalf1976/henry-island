@@ -1,4 +1,4 @@
-export type GameType = 'wordle' | 'lake' | 'quiz';
+export type GameType = 'wordle' | 'lake' | 'quiz' | 'wordLadder';
 
 export interface AvatarDef {
   id: string;
@@ -21,6 +21,10 @@ export interface PlayerProfile {
       wordleScore?: number;
       lakeScore?: number;
       quizScore?: number;
+      wordLadderScore?: number;
+      scavengerScore?: number;
+      scavengerFoundIds?: string[];
+      scavengerCompleted?: boolean;
       completedGames: GameType[];
       totalDayScore: number;
     };
@@ -119,4 +123,38 @@ export interface SnowmanVisualTier {
   hasTopHat: boolean;
   hasArms: boolean;
   hasFairyLights: boolean;
+}
+
+export interface WordLadderPuzzle {
+  startWord: string;
+  targetWord: string;
+  minSteps: number;
+  samplePath?: string[];
+}
+
+export interface WordLadderRung {
+  word: string;
+  changedIndex: number;
+}
+
+export interface WordLadderState {
+  puzzle: WordLadderPuzzle;
+  ladder: string[]; // [startWord, rung1, rung2, ...]
+  isComplete: boolean;
+  isWin: boolean;
+  score: number;
+  maxSteps: number;
+}
+
+export interface ScavengerItemDef {
+  id: string;
+  name: string;
+  emoji: string;
+  icon: string;
+  hint: string;
+  locationName: string;
+  x: number;
+  y: number;
+  z: number;
+  color: number;
 }

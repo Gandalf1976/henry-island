@@ -275,7 +275,7 @@ class FamilyStore {
   }
 
   public getUnplayedGamesToday(playerId: string, dateKey = getTodayDateKey()): GameType[] {
-    const allGames: GameType[] = ['wordle', 'lake', 'quiz'];
+    const allGames: GameType[] = ['wordle', 'lake', 'quiz', 'wordLadder'];
     const player = this.players.find(p => p.id === playerId);
     if (!player) return allGames;
     const dayRecord = player.history?.[dateKey];
@@ -308,6 +308,7 @@ class FamilyStore {
     if (gameType === 'wordle') dayRecord.wordleScore = score;
     if (gameType === 'lake') dayRecord.lakeScore = score;
     if (gameType === 'quiz') dayRecord.quizScore = score;
+    if (gameType === 'wordLadder') dayRecord.wordLadderScore = score;
 
     // Update streak logic
     if (player.lastPlayedDate !== dateKey) {
@@ -325,6 +326,97 @@ class FamilyStore {
 
     this.notify();
     return true;
+  }
+
+  // --- Dad Reset Day Feature ---
+
+  public isDadActive(): boolean {
+    const active = this.getActivePlayer();
+    return active.name.trim().toLowerCase() === 'dad';
+  }
+
+  public resetTodayForDad(dateKey = getTodayDateKey()): boolean {
+    const active = this.getActivePlayer();
+    if (active.name.trim().toLowerCase() !== 'dad') {
+      return false; // Only Dad can reset his day
+    }
+
+    const dayRecord = active.history?.[dateKey];
+    if (dayRecord) {
+      const dayScore = dayRecord.totalDayScore || 0;
+      active.totalScore = Math.max(0, (active.totalScore || 0) - dayScore);
+      dayRecord.totalDayScore = 0;
+      dayRecord.completedGames = [];
+      dayRecord.wordleScore = undefined;
+      dayRecord.lakeScore = undefined;
+      dayRecord.quizScore = undefined;
+      dayRecord.wordLadderScore = undefined;
+      dayRecord.scavengerScore = undefined;
+      dayRecord.scavengerFoundIds = [];
+      dayRecord.scavengerCompleted = false;
+    }
+
+    this.notify();
+    return true;
+  }
+
+  // --- Scavenger Hunt Tracking ---
+
+  public getScavengerFoundIds(playerId?: string, dateKey = getTodayDateKey()): string[] {
+    const p = playerId ? this.players.find(x => x.id === playerId) : this.getActivePlayer();
+    if (!p || !p.history || !p.history[dateKey]) return [];
+    return p.history[dateKey].scavengerFoundIds || [];
+  }
+
+  public isScavengerCompleted(playerId?: string, dateKey = getTodayDateKey()): boolean {
+    const p = playerId ? this.players.find(x => x.id === playerId) : this.getActivePlayer();
+    if (!p || !p.history || !p.history[dateKey]) return false;
+    return Boolean(p.history[dateKey].scavengerCompleted);
+  }
+
+  public recordScavengerItemFound(
+    itemId: string,
+    playerId?: string,
+    dateKey = getTodayDateKey()
+  ): { newlyFound: boolean; completedAll: boolean; pointsAwarded: number } {
+    const p = playerId ? this.players.find(x => x.id === playerId) : this.getActivePlayer();
+    if (!p) return { newlyFound: false, completedAll: false, pointsAwarded: 0 };
+
+    if (!p.history) p.history = {};
+    if (!p.history[dateKey]) {
+      p.history[dateKey] = {
+        completedGames: [],
+        totalDayScore: 0,
+        scavengerFoundIds: [],
+        scavengerCompleted: false
+      };
+    }
+
+    const dayRecord = p.history[dateKey];
+    if (!dayRecord.scavengerFoundIds) {
+      dayRecord.scavengerFoundIds = [];
+    }
+
+    if (dayRecord.scavengerFoundIds.includes(itemId)) {
+      return { newlyFound: false, completedAll: Boolean(dayRecord.scavengerCompleted), pointsAwarded: 0 };
+    }
+
+    dayRecord.scavengerFoundIds.push(itemId);
+    let pointsAwarded = 0;
+    let completedAll = false;
+
+    // Check if all 5 items found
+    if (dayRecord.scavengerFoundIds.length >= 5 && !dayRecord.scavengerCompleted) {
+      dayRecord.scavengerCompleted = true;
+      dayRecord.scavengerScore = 2;
+      dayRecord.totalDayScore = (dayRecord.totalDayScore || 0) + 2;
+      p.totalScore = (p.totalScore || 0) + 2;
+      pointsAwarded = 2;
+      completedAll = true;
+    }
+
+    this.notify();
+    return { newlyFound: true, completedAll, pointsAwarded };
   }
 
   // --- Bulletin Board / Message Board ---

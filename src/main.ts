@@ -5,8 +5,10 @@ import { LakeGame } from './components/LakeGame';
 import { ManagePlayersModal } from './components/ManagePlayersModal';
 import { MessageBoardModal } from './components/MessageBoardModal';
 import { QuizGame } from './components/QuizGame';
+import { ScavengerHuntModal } from './components/ScavengerHuntModal';
 import { SnowmanPodiumModal } from './components/SnowmanPodium';
 import { VirtualJoystick } from './components/VirtualJoystick';
+import { WordLadderGame } from './components/WordLadderGame';
 import { WordleGame } from './components/WordleGame';
 import { AVATAR_ROSTER } from './data/avatars';
 import { familyStore } from './state/familyStore';
@@ -19,7 +21,7 @@ import { IslandWorld3D } from './world/islandWorld3D';
 class App {
   private world: IslandWorld3D;
   private modalHost: HTMLElement;
-  private activeGameInstance: WordleGame | LakeGame | QuizGame | null = null;
+  private activeGameInstance: WordleGame | LakeGame | QuizGame | WordLadderGame | null = null;
 
   constructor() {
     const viewport = document.getElementById('island-viewport');
@@ -72,6 +74,28 @@ class App {
       this.openAvatarModal();
     });
 
+    // Scavenger Hunt Button -> Open Scavenger Hunt Modal
+    document.getElementById('header-scavenger-btn')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      if (this.activeGameInstance || this.modalHost.children.length > 0) return;
+      new ScavengerHuntModal(this.modalHost, () => this.closeModal());
+    });
+
+    // Dad Reset Day Button (Dad Only)
+    document.getElementById('header-dad-reset-btn')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      if (!familyStore.isDadActive()) return;
+      const confirmed = window.confirm(
+        "Dad, would you like to reset today's puzzles so you can play them again?\nYour score for today will be returned to 0."
+      );
+      if (confirmed) {
+        familyStore.resetTodayForDad();
+        liveSyncManager.broadcastState('game_reset', "🔄 Dad reset today's puzzles to play again!");
+        this.updateHeaderBadge();
+        this.showToast("🔄 Puzzles reset for Dad! Today's score returned to 0.");
+      }
+    });
+
     // Messages Button -> Open Message Board
     document.getElementById('header-messages-btn')?.addEventListener('click', () => {
       soundAudio.playButtonClick();
@@ -104,10 +128,26 @@ class App {
       updateSoundBtn();
     });
 
+    // Zoom Controls
+    document.getElementById('zoom-in-btn')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      this.world.zoomIn();
+    });
+
+    document.getElementById('zoom-out-btn')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      this.world.zoomOut();
+    });
+
     // Fast-Travel Dock Buttons
     document.getElementById('travel-wordle')?.addEventListener('click', () => {
       soundAudio.playButtonClick();
       this.world.teleportTo('wordle');
+    });
+
+    document.getElementById('travel-ladder')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      this.world.teleportTo('wordLadder');
     });
 
     document.getElementById('travel-town')?.addEventListener('click', () => {
@@ -129,6 +169,16 @@ class App {
       soundAudio.playButtonClick();
       this.world.teleportTo('quiz');
     });
+
+    document.getElementById('travel-elves')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      this.world.teleportTo('elves');
+    });
+
+    document.getElementById('travel-hearth')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      this.world.teleportTo('hearth');
+    });
   }
 
   private updateHeaderBadge(): void {
@@ -143,6 +193,32 @@ class App {
     if (emojiEl) emojiEl.textContent = avatar.emoji;
     if (nameEl) nameEl.textContent = activePlayer.name;
     if (scoreEl) scoreEl.textContent = `Avg ${stats.averageScore} pts`;
+
+    // Dad Reset Day button visibility
+    const dadBtn = document.getElementById('header-dad-reset-btn');
+    if (dadBtn) {
+      if (familyStore.isDadActive()) {
+        dadBtn.classList.remove('hidden');
+        dadBtn.classList.add('flex');
+      } else {
+        dadBtn.classList.add('hidden');
+        dadBtn.classList.remove('flex');
+      }
+    }
+
+    // Scavenger Hunt Badge
+    const foundIds = familyStore.getScavengerFoundIds(activePlayer.id);
+    const isScavCompleted = familyStore.isScavengerCompleted(activePlayer.id);
+    const scavBadge = document.getElementById('header-scavenger-badge');
+    if (scavBadge) {
+      if (isScavCompleted) {
+        scavBadge.textContent = '5/5 ✓';
+        scavBadge.className = 'px-1.5 py-0.2 bg-amber-400 text-slate-900 text-[10px] font-black rounded-full';
+      } else {
+        scavBadge.textContent = `${foundIds.length}/5`;
+        scavBadge.className = 'px-1.5 py-0.2 bg-emerald-400 text-slate-900 text-[10px] font-black rounded-full';
+      }
+    }
 
     // Unread messages badge
     const unreadCount = familyStore.getUnreadMessageCount();
@@ -204,7 +280,26 @@ class App {
         this.closeModal();
         liveSyncManager.broadcastState('score_update', `🧠 ${activePlayer.name} just finished Quiz!`);
       });
+    } else if (game === 'wordLadder') {
+      this.activeGameInstance = new WordLadderGame(this.modalHost, () => {
+        this.closeModal();
+        liveSyncManager.broadcastState('score_update', `🪜 ${activePlayer.name} just finished Word Ladder!`);
+      });
     }
+  }
+
+  private showToast(text: string): void {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'px-4 py-2 bg-gradient-to-r from-red-600 to-amber-600 text-white font-black text-xs sm:text-sm rounded-2xl shadow-2xl border-2 border-white/80 animate-bounce pointer-events-none flex items-center gap-2';
+    toast.innerHTML = text;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.5s ease';
+      setTimeout(() => toast.remove(), 500);
+    }, 3000);
   }
 
   private openAvatarModal(): void {

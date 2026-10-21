@@ -21,7 +21,8 @@ export class ClosedModal {
     const gameNames: Record<GameType, { name: string; location: string; icon: string }> = {
       wordle: { name: 'Henry-Wordle', location: 'Wordle Cottage', icon: '🟩' },
       lake: { name: 'Henry-Lake', location: 'Frozen Lake', icon: '🪷' },
-      quiz: { name: 'Henry-Quiz', location: 'Quiz Observatory', icon: '🧠' }
+      quiz: { name: 'Henry-Quiz', location: 'Quiz Observatory', icon: '🧠' },
+      wordLadder: { name: 'Henry Word Ladder', location: 'Word Ladder Mountain Lodge', icon: '🪜' }
     };
 
     const g = gameNames[this.gameType];
