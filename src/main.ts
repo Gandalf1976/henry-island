@@ -1,6 +1,7 @@
 import { AvatarModal } from './components/AvatarModal';
 import { ClosedModal } from './components/ClosedModal';
 import { DevicePlayerSelectModal } from './components/DevicePlayerSelectModal';
+import { GuideModal } from './components/GuideModal';
 import { LakeGame } from './components/LakeGame';
 import { ManagePlayersModal } from './components/ManagePlayersModal';
 import { MessageBoardModal } from './components/MessageBoardModal';
@@ -106,6 +107,12 @@ class App {
     document.getElementById('header-podium-btn')?.addEventListener('click', () => {
       soundAudio.playButtonClick();
       this.openPodiumModal();
+    });
+
+    // How to Play / Guide Button
+    document.getElementById('header-guide-btn')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      this.openGuideModal();
     });
 
     // Manage Family Members Button
@@ -317,6 +324,11 @@ class App {
     new MessageBoardModal(() => {
       this.updateHeaderBadge();
     }).show();
+  }
+
+  private openGuideModal(): void {
+    if (this.activeGameInstance || this.modalHost.children.length > 0) return;
+    new GuideModal(this.modalHost, () => this.closeModal());
   }
 
   private closeModal(): void {
