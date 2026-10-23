@@ -1,10 +1,11 @@
 import confetti from 'canvas-confetti';
 import * as THREE from 'three';
 import { AVATAR_ROSTER } from '../data/avatars';
-import { DAILY_SCAVENGER_ITEMS } from '../data/scavengerItems';
+import { getDailyScavengerItems } from '../data/scavengerItems';
 import { familyStore, LeaderboardEntry } from '../state/familyStore';
 import { GameType } from '../types';
 import { playSound, soundAudio } from '../utils/audio';
+import { getTodayDateKey } from '../utils/dailyClock';
 
 export interface World3DCallbacks {
   onTriggerGame: (gameType: GameType) => void;
@@ -55,6 +56,12 @@ export class IslandWorld3D {
   private podiumSnowmenGroups: THREE.Group[] = [];
   private podiumPlaquesGroups: THREE.Group[] = [];
   private candyCaneTexture: THREE.CanvasTexture | null = null;
+  private santaArm?: THREE.Mesh;
+  private santaTorso?: THREE.Group;
+  private santaSpeechBubble?: THREE.Group;
+  private santaSpeechTimer: number = 0;
+  private santaSpeechVisible: boolean = false;
+  private animatedChildren: { group: THREE.Group; baseY: number; armL?: THREE.Mesh; armR?: THREE.Mesh; phase: number }[] = [];
 
   // Scavenger items
   private scavengerMeshes: {
@@ -67,7 +74,7 @@ export class IslandWorld3D {
 
   // Interactive targets
   private interactivePortals: {
-    id: GameType | 'podium' | 'board' | 'elves' | 'hearth';
+    id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa';
     pos: THREE.Vector3;
     radius: number;
     title: string;
@@ -316,12 +323,20 @@ export class IslandWorld3D {
     this.scene.add(pathSouth);
 
     // Path South-East to Word Ladder Lodge (38, 1.8, 38)
-    const pathLadderGeo = new THREE.BoxGeometry(5, 0.15, 42);
+    const pathLadderGeo = new THREE.BoxGeometry(5, 0.15, 50);
     const pathLadder = new THREE.Mesh(pathLadderGeo, pathMat);
-    pathLadder.position.set(20, 1.8, 20);
-    pathLadder.rotation.y = -Math.PI / 4;
+    pathLadder.position.set(19, 1.8, 19);
+    pathLadder.rotation.y = Math.PI / 4;
     pathLadder.receiveShadow = true;
     this.scene.add(pathLadder);
+
+    // Path South-West to Henry Target 24 Math Chalet (-36, 1.8, 32)
+    const pathTarget24Geo = new THREE.BoxGeometry(5, 0.15, 48);
+    const pathTarget24 = new THREE.Mesh(pathTarget24Geo, pathMat);
+    pathTarget24.position.set(-18, 1.8, 16);
+    pathTarget24.rotation.y = Math.atan2(-36, 32);
+    pathTarget24.receiveShadow = true;
+    this.scene.add(pathTarget24);
 
     // Path North-East to Santa's Elves Workshop (45, 1.8, -35)
     const pathElvesGeo = new THREE.BoxGeometry(5, 0.15, 42);
@@ -627,6 +642,69 @@ export class IslandWorld3D {
     ladderGroup.add(ladderRoofSign);
 
     this.scene.add(ladderGroup);
+
+    // -------------------------------------------------------------
+    // 5. HENRY TARGET 24 MATH CHALET (South-West: -36, 1.8, 32)
+    // -------------------------------------------------------------
+    const target24Group = new THREE.Group();
+    target24Group.position.set(-36, 1.8, 32);
+
+    // Warm Alpine Math Chalet (Royal Indigo Timber)
+    const t24ChaletGeo = new THREE.BoxGeometry(13, 8.2, 11);
+    const t24ChaletMat = new THREE.MeshStandardMaterial({ color: 0x312e81, roughness: 0.8 }); // Deep Royal Indigo timber
+    const t24Chalet = new THREE.Mesh(t24ChaletGeo, t24ChaletMat);
+    t24Chalet.position.y = 4.1;
+    t24Chalet.castShadow = true;
+    target24Group.add(t24Chalet);
+
+    // Steep A-frame snowy roof
+    const t24RoofGeo = new THREE.ConeGeometry(10.5, 5.8, 4);
+    const t24Roof = new THREE.Mesh(t24RoofGeo, new THREE.MeshStandardMaterial({ color: 0xf8fafc }));
+    t24Roof.position.y = 11.0;
+    t24Roof.rotation.y = Math.PI / 4;
+    t24Roof.scale.set(1.1, 1, 1.2);
+    t24Roof.castShadow = true;
+    target24Group.add(t24Roof);
+
+    // Stone Chimney
+    const t24Chimney = new THREE.Mesh(new THREE.BoxGeometry(1.6, 5, 1.6), stoneMat);
+    t24Chimney.position.set(3.8, 10.5, -2.5);
+    target24Group.add(t24Chimney);
+
+    // Giant Target 24 Math Decor beside entrance (Large golden targets & dice)
+    const targetSignGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.25, 24);
+    const targetRingMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+    const targetSignMesh = new THREE.Mesh(targetSignGeo, targetRingMat);
+    targetSignMesh.rotation.x = Math.PI / 2;
+    targetSignMesh.position.set(-4.5, 3.5, 5.8);
+    target24Group.add(targetSignMesh);
+
+    const innerTargetMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.28, 24), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+    innerTargetMesh.rotation.x = Math.PI / 2;
+    innerTargetMesh.position.set(-4.5, 3.5, 5.8);
+    target24Group.add(innerTargetMesh);
+
+    // Windows with warm light
+    const t24Win1 = new THREE.Mesh(winGeo, winMat);
+    t24Win1.position.set(-3.2, 4.1, 5.55);
+    target24Group.add(t24Win1);
+
+    const t24Win2 = new THREE.Mesh(winGeo, winMat);
+    t24Win2.position.set(3.2, 4.1, 5.55);
+    target24Group.add(t24Win2);
+
+    // Front Wooden Door
+    const t24Door = new THREE.Mesh(doorGeo, doorMat);
+    t24Door.position.set(0, 2.0, 5.55);
+    target24Group.add(t24Door);
+
+    // ROOF SIGN - Mounted on front roof gable, facing SOUTH!
+    const target24RoofSign = this.createRoofSign('HENRY TARGET 24', 'Make 24 with 4 Numbers 🎯');
+    target24RoofSign.position.set(0, 11.8, 5.2);
+    target24RoofSign.rotation.set(0, 0, 0); // Faces South!
+    target24Group.add(target24RoofSign);
+
+    this.scene.add(target24Group);
 
     // -------------------------------------------------------------
     // 5. TOWN CENTER PODIUM & MESSAGE BOARD
@@ -1266,7 +1344,9 @@ export class IslandWorld3D {
    * Builds the 5 Daily Scavenger Hunt 3D Collectibles.
    */
   private buildScavengerItems(): void {
-    DAILY_SCAVENGER_ITEMS.forEach(item => {
+    const today = getTodayDateKey();
+    const items = getDailyScavengerItems(today);
+    items.forEach(item => {
       const group = new THREE.Group();
       group.position.set(item.x, item.y, item.z);
 
@@ -1334,6 +1414,81 @@ export class IslandWorld3D {
     });
   }
 
+  private createChild(coatColor: number, hatColor: number, scarfColor: number): {
+    group: THREE.Group;
+    baseY: number;
+    armL?: THREE.Mesh;
+    armR?: THREE.Mesh;
+    phase: number;
+  } {
+    const group = new THREE.Group();
+    const phase = Math.random() * Math.PI * 2;
+
+    // Body (Warm Winter Coat)
+    const coatMat = new THREE.MeshStandardMaterial({ color: coatColor, roughness: 0.7 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.48, 1.2, 10), coatMat);
+    body.position.y = 0.95;
+    body.castShadow = true;
+    group.add(body);
+
+    // Warm Winter Boots & Legs
+    const bootMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.3), bootMat);
+    legL.position.set(-0.2, 0.25, 0);
+    group.add(legL);
+    const legR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.3), bootMat);
+    legR.position.set(0.2, 0.25, 0);
+    group.add(legR);
+
+    // Cozy Scarf around neck
+    const scarfMat = new THREE.MeshStandardMaterial({ color: scarfColor, roughness: 0.7 });
+    const scarf = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.12, 8, 16), scarfMat);
+    scarf.rotation.x = Math.PI / 2;
+    scarf.position.y = 1.55;
+    group.add(scarf);
+
+    // Child Head
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffedd5, roughness: 0.5 });
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 12), headMat);
+    head.position.y = 1.85;
+    group.add(head);
+
+    // Rosy smiling cheeks
+    const blushMat = new THREE.MeshBasicMaterial({ color: 0xf472b6 });
+    const bL = new THREE.Mesh(new THREE.CircleGeometry(0.06, 8), blushMat);
+    bL.position.set(-0.16, 1.82, 0.37);
+    group.add(bL);
+    const bR = new THREE.Mesh(new THREE.CircleGeometry(0.06, 8), blushMat);
+    bR.position.set(0.16, 1.82, 0.37);
+    group.add(bR);
+
+    // Winter Bobble Hat
+    const hatMat = new THREE.MeshStandardMaterial({ color: hatColor, roughness: 0.6 });
+    const hat = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.9, 10), hatMat);
+    hat.position.set(0, 2.35, 0);
+    group.add(hat);
+
+    // Fluffy Pompom on hat
+    const pomMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+    const pom = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), pomMat);
+    pom.position.set(0, 2.85, 0);
+    group.add(pom);
+
+    // Arms with mittens
+    const armGeo = new THREE.CylinderGeometry(0.1, 0.12, 0.7, 8);
+    const armL = new THREE.Mesh(armGeo, coatMat);
+    armL.position.set(-0.5, 1.25, 0.1);
+    armL.rotation.z = 0.3;
+    group.add(armL);
+
+    const armR = new THREE.Mesh(armGeo, coatMat);
+    armR.position.set(0.5, 1.25, 0.1);
+    armR.rotation.z = -0.3;
+    group.add(armR);
+
+    return { group, baseY: 0, armL, armR, phase };
+  }
+
   private buildSantaAndSleigh(): void {
     const santaGroup = new THREE.Group();
     santaGroup.position.set(0, 1.8, 42);
@@ -1369,6 +1524,15 @@ export class IslandWorld3D {
     sBody.position.y = 0.9;
     santaModel.add(sBody);
 
+    // Belt & Gold Buckle
+    const beltMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+    const sBelt = new THREE.Mesh(new THREE.CylinderGeometry(0.96, 1.02, 0.3, 12), beltMat);
+    sBelt.position.y = 0.85;
+    santaModel.add(sBelt);
+    const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.35, 0.1), new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8 }));
+    buckle.position.set(0, 0.85, 1.0);
+    santaModel.add(buckle);
+
     // White Beard
     const beardMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
     const beard = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.2, 8), beardMat);
@@ -1392,9 +1556,64 @@ export class IslandWorld3D {
     pom.position.set(0.1, 3.5, -0.5);
     santaModel.add(pom);
 
+    // Left Arm resting on sleigh side
+    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 1.1, 8), redMat);
+    armL.position.set(-1.1, 1.3, 0.2);
+    armL.rotation.z = Math.PI / 4;
+    santaModel.add(armL);
+
+    // Waving Right Arm (Animated!)
+    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 1.1, 8), redMat);
+    armR.position.set(1.1, 1.5, 0.2);
+    armR.rotation.z = -Math.PI / 3;
+    santaModel.add(armR);
+    this.santaArm = armR;
+    this.santaTorso = santaModel;
+
+    // Golden Jingle bell in Santa's waving hand
+    const bellMesh = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9 }));
+    bellMesh.position.set(0, 0.6, 0);
+    armR.add(bellMesh);
+
     santaGroup.add(santaModel);
 
-    // 2 Festive Reindeer ahead of the sleigh
+    // Pile of Wrapped Holiday Presents in the Sleigh
+    const presentConfigs = [
+      { x: -1.4, y: 2.2, z: -1.0, sx: 1.3, sy: 1.1, sz: 1.2, color: 0xf59e0b, ribColor: 0xef4444 },
+      { x: 1.3, y: 2.3, z: -1.1, sx: 1.4, sy: 1.3, sz: 1.3, color: 0x10b981, ribColor: 0xfacc15 },
+      { x: -0.1, y: 2.8, z: -1.4, sx: 1.2, sy: 1.0, sz: 1.1, color: 0x3b82f6, ribColor: 0xf1f5f9 },
+      { x: -1.2, y: 3.2, z: -1.0, sx: 0.9, sy: 0.9, sz: 0.9, color: 0x8b5cf6, ribColor: 0xfacc15 },
+      { x: 1.1, y: 3.3, z: -1.1, sx: 0.85, sy: 0.85, sz: 0.85, color: 0xec4899, ribColor: 0xffffff },
+      { x: 0.0, y: 2.2, z: 0.5, sx: 1.1, sy: 0.8, sz: 0.9, color: 0x06b6d4, ribColor: 0xf59e0b },
+      { x: -2.0, y: 2.1, z: 0.2, sx: 0.8, sy: 0.8, sz: 0.8, color: 0xd97706, ribColor: 0x15803d }
+    ];
+
+    presentConfigs.forEach(p => {
+      const pBox = new THREE.Mesh(
+        new THREE.BoxGeometry(p.sx, p.sy, p.sz),
+        new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.5 })
+      );
+      pBox.position.set(p.x, p.y, p.z);
+      pBox.castShadow = true;
+      santaGroup.add(pBox);
+
+      // Cross Ribbons
+      const ribH = new THREE.Mesh(
+        new THREE.BoxGeometry(p.sx + 0.04, p.sy * 0.15, p.sz + 0.04),
+        new THREE.MeshStandardMaterial({ color: p.ribColor, metalness: 0.4 })
+      );
+      ribH.position.set(p.x, p.y, p.z);
+      santaGroup.add(ribH);
+
+      const ribV = new THREE.Mesh(
+        new THREE.BoxGeometry(p.sx * 0.15, p.sy + 0.04, p.sz + 0.04),
+        new THREE.MeshStandardMaterial({ color: p.ribColor, metalness: 0.4 })
+      );
+      ribV.position.set(p.x, p.y, p.z);
+      santaGroup.add(ribV);
+    });
+
+    // 2 Festive Reindeer ahead of the sleigh (Rudolph and Donner)
     const deer1 = this.createReindeer();
     deer1.position.set(-2.5, 0, 7.5);
     santaGroup.add(deer1);
@@ -1402,6 +1621,94 @@ export class IslandWorld3D {
     const deer2 = this.createReindeer();
     deer2.position.set(2.5, 0, 7.5);
     santaGroup.add(deer2);
+
+    // 3 Children Gathered Around Santa & Rudolph
+    // Child 1 (Emma): Yellow coat, blue hat, petting Rudolph's nose
+    const child1 = this.createChild(0xfacc15, 0x0284c7, 0xef4444);
+    child1.group.position.set(-3.8, 0, 7.8);
+    child1.group.rotation.y = 0.5;
+    if (child1.armR) {
+      child1.armR.rotation.x = -Math.PI / 3;
+      child1.armR.rotation.z = -0.4;
+    }
+    santaGroup.add(child1.group);
+    this.animatedChildren.push(child1);
+
+    // Child 2 (Leo): Teal coat, cherry red hat, waving up at Santa
+    const child2 = this.createChild(0x0d9488, 0xe11d48, 0xfacc15);
+    child2.group.position.set(3.4, 0, 0.6);
+    child2.group.rotation.y = -Math.PI / 2.5;
+    if (child2.armL && child2.armR) {
+      child2.armL.rotation.x = -Math.PI / 2.5;
+      child2.armR.rotation.x = -Math.PI / 2.2;
+    }
+    santaGroup.add(child2.group);
+    this.animatedChildren.push(child2);
+
+    // Child 3 (Mia): Warm orange coat, violet hat, jumping by the presents
+    const child3 = this.createChild(0xf97316, 0x7c3aed, 0x3b82f6);
+    child3.group.position.set(-3.2, 0, -0.6);
+    child3.group.rotation.y = Math.PI / 3;
+    santaGroup.add(child3.group);
+    this.animatedChildren.push(child3);
+
+    // Floating 3D Speech Bubble above Santa
+    const bubbleGroup = new THREE.Group();
+    bubbleGroup.position.set(0, 7.6, -0.6);
+
+    const bubbleCanvas = document.createElement('canvas');
+    bubbleCanvas.width = 512;
+    bubbleCanvas.height = 256;
+    const bctx = bubbleCanvas.getContext('2d');
+    if (bctx) {
+      // Rounded bubble background
+      bctx.fillStyle = '#ffffff';
+      bctx.beginPath();
+      bctx.roundRect(16, 16, 480, 180, 28);
+      bctx.fill();
+
+      // Border
+      bctx.lineWidth = 10;
+      bctx.strokeStyle = '#dc2626';
+      bctx.stroke();
+
+      // Pointer tail
+      bctx.fillStyle = '#ffffff';
+      bctx.beginPath();
+      bctx.moveTo(230, 196);
+      bctx.lineTo(256, 246);
+      bctx.lineTo(282, 196);
+      bctx.closePath();
+      bctx.fill();
+
+      bctx.strokeStyle = '#dc2626';
+      bctx.lineWidth = 8;
+      bctx.beginPath();
+      bctx.moveTo(230, 196);
+      bctx.lineTo(256, 246);
+      bctx.lineTo(282, 196);
+      bctx.stroke();
+
+      // Text
+      bctx.textAlign = 'center';
+      bctx.textBaseline = 'middle';
+      bctx.font = '900 46px system-ui, -apple-system, sans-serif';
+      bctx.fillStyle = '#b91c1c';
+      bctx.fillText('🎅 "HO, HO, HO!"', 256, 78);
+
+      bctx.font = '700 28px system-ui, -apple-system, sans-serif';
+      bctx.fillStyle = '#0f172a';
+      bctx.fillText('Merry Christmas, Henry Family! 🎄', 256, 136);
+    }
+
+    const bubbleTex = new THREE.CanvasTexture(bubbleCanvas);
+    const bubbleMat = new THREE.MeshBasicMaterial({ map: bubbleTex, transparent: true, side: THREE.DoubleSide });
+    const bubbleMesh = new THREE.Mesh(new THREE.PlaneGeometry(8, 4), bubbleMat);
+    bubbleGroup.add(bubbleMesh);
+    bubbleGroup.scale.set(0, 0, 0); // initially hidden
+
+    santaGroup.add(bubbleGroup);
+    this.santaSpeechBubble = bubbleGroup;
 
     this.scene.add(santaGroup);
   }
@@ -2128,6 +2435,20 @@ export class IslandWorld3D {
         radius: 7,
         title: '🔥 Cozy Hearth Campfire',
         actionText: 'Warm up by the Campfire'
+      },
+      {
+        id: 'target24',
+        pos: new THREE.Vector3(-36, 1.8, 32),
+        radius: 8,
+        title: '🎯 Henry Target 24',
+        actionText: 'Tap or Press Space to Play Target 24'
+      },
+      {
+        id: 'santa',
+        pos: new THREE.Vector3(0, 1.8, 38),
+        radius: 9,
+        title: "🎅 Santa's Sleigh & Reindeer",
+        actionText: 'Greet Santa & Rudolph'
       }
     ];
 
@@ -2259,7 +2580,7 @@ export class IslandWorld3D {
     this.joystickVector.y = y;
   }
 
-  public teleportTo(id: GameType | 'podium' | 'board' | 'elves' | 'hearth'): void {
+  public teleportTo(id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa'): void {
     const portal = this.interactivePortals.find(p => p.id === id);
     if (portal) {
       this.playerPos.copy(portal.pos);
@@ -2270,15 +2591,27 @@ export class IslandWorld3D {
     }
   }
 
+  public triggerSantaSpeech(): void {
+    this.santaSpeechVisible = true;
+    this.santaSpeechTimer = 5.0;
+    if (this.santaSpeechBubble) {
+      this.santaSpeechBubble.scale.set(1, 1, 1);
+    }
+  }
+
   private triggerInteraction(id: string): void {
     if (this.isModalOpen()) return;
     playSound('buttonClick');
-    if (id === 'wordle' || id === 'lake' || id === 'quiz' || id === 'wordLadder') {
+    if (id === 'wordle' || id === 'lake' || id === 'quiz' || id === 'wordLadder' || id === 'target24') {
       this.callbacks.onTriggerGame(id as GameType);
     } else if (id === 'podium') {
       this.callbacks.onOpenPodium();
     } else if (id === 'board') {
       this.callbacks.onOpenMessageBoard();
+    } else if (id === 'santa') {
+      this.triggerSantaSpeech();
+      this.showCollectToast("🎅 Santa: 'HO, HO, HO! Merry Christmas, Henry Family!'");
+      soundAudio.playJingle();
     } else if (id === 'elves') {
       this.showCollectToast("🧝 Santa's Elves: 'We are wrapping toys for the Henry family!'");
       soundAudio.playJingle();
@@ -2441,7 +2774,8 @@ export class IslandWorld3D {
           const result = familyStore.recordScavengerItemFound(item.id, active.id);
           if (result.newlyFound) {
             soundAudio.playJingle();
-            const def = DAILY_SCAVENGER_ITEMS.find(d => d.id === item.id);
+            const dailyItems = getDailyScavengerItems(getTodayDateKey());
+            const def = dailyItems.find(d => d.id === item.id);
             const itemName = def ? `${def.emoji} ${def.name}` : 'Holiday Item';
             this.showCollectToast(`✨ Discovered: <strong>${itemName}</strong>!`);
 
@@ -2564,7 +2898,43 @@ export class IslandWorld3D {
       }
     });
 
-    // 8. Render
+    // 8. Santa's Sleigh, Waving Arm, Children & Speech Bubble
+    if (this.santaArm) {
+      this.santaArm.rotation.z = -Math.PI / 3 + Math.sin(time * 5) * 0.35;
+      this.santaArm.rotation.x = Math.sin(time * 4) * 0.15;
+    }
+    if (this.santaTorso) {
+      this.santaTorso.position.y = 2.8 + Math.abs(Math.sin(time * 3)) * 0.08;
+    }
+
+    this.animatedChildren.forEach((child, idx) => {
+      child.group.position.y = child.baseY + Math.abs(Math.sin(time * 4 + idx * 1.5)) * 0.22;
+      if (child.armL && idx === 1) {
+        child.armL.rotation.x = -Math.PI / 2.5 + Math.sin(time * 6) * 0.2;
+      }
+      if (child.armR) {
+        child.armR.rotation.x = -Math.PI / 3 + Math.sin(time * 5 + idx) * 0.25;
+      }
+    });
+
+    this.santaSpeechTimer -= delta;
+    if (this.santaSpeechTimer <= 0) {
+      if (this.santaSpeechVisible) {
+        this.santaSpeechVisible = false;
+        this.santaSpeechTimer = 10 + Math.random() * 8;
+      } else {
+        this.santaSpeechVisible = true;
+        this.santaSpeechTimer = 4.5;
+      }
+    }
+
+    if (this.santaSpeechBubble) {
+      const targetScale = this.santaSpeechVisible ? 1.0 : 0.0;
+      this.santaSpeechBubble.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.15);
+      this.santaSpeechBubble.lookAt(this.camera.position);
+    }
+
+    // 9. Render
     this.renderer.render(this.scene, this.camera);
   };
 

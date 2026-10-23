@@ -8,6 +8,7 @@ import { MessageBoardModal } from './components/MessageBoardModal';
 import { QuizGame } from './components/QuizGame';
 import { ScavengerHuntModal } from './components/ScavengerHuntModal';
 import { SnowmanPodiumModal } from './components/SnowmanPodium';
+import { Target24Game } from './components/Target24Game';
 import { VirtualJoystick } from './components/VirtualJoystick';
 import { WordLadderGame } from './components/WordLadderGame';
 import { WordleGame } from './components/WordleGame';
@@ -22,7 +23,7 @@ import { IslandWorld3D } from './world/islandWorld3D';
 class App {
   private world: IslandWorld3D;
   private modalHost: HTMLElement;
-  private activeGameInstance: WordleGame | LakeGame | QuizGame | WordLadderGame | null = null;
+  private activeGameInstance: WordleGame | LakeGame | QuizGame | WordLadderGame | Target24Game | null = null;
 
   constructor() {
     const viewport = document.getElementById('island-viewport');
@@ -155,6 +156,11 @@ class App {
     document.getElementById('travel-ladder')?.addEventListener('click', () => {
       soundAudio.playButtonClick();
       this.world.teleportTo('wordLadder');
+    });
+
+    document.getElementById('travel-target24')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      this.world.teleportTo('target24');
     });
 
     document.getElementById('travel-town')?.addEventListener('click', () => {
@@ -291,6 +297,11 @@ class App {
       this.activeGameInstance = new WordLadderGame(this.modalHost, () => {
         this.closeModal();
         liveSyncManager.broadcastState('score_update', `🪜 ${activePlayer.name} just finished Word Ladder!`);
+      });
+    } else if (game === 'target24') {
+      this.activeGameInstance = new Target24Game(this.modalHost, () => {
+        this.closeModal();
+        liveSyncManager.broadcastState('score_update', `🎯 ${activePlayer.name} just finished Target 24!`);
       });
     }
   }

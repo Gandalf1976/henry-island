@@ -1,4 +1,4 @@
-export type GameType = 'wordle' | 'lake' | 'quiz' | 'wordLadder';
+export type GameType = 'wordle' | 'lake' | 'quiz' | 'wordLadder' | 'target24';
 
 export interface AvatarDef {
   id: string;
@@ -22,6 +22,7 @@ export interface PlayerProfile {
       lakeScore?: number;
       quizScore?: number;
       wordLadderScore?: number;
+      target24Score?: number;
       scavengerScore?: number;
       scavengerFoundIds?: string[];
       scavengerCompleted?: boolean;

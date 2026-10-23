@@ -275,7 +275,7 @@ class FamilyStore {
   }
 
   public getUnplayedGamesToday(playerId: string, dateKey = getTodayDateKey()): GameType[] {
-    const allGames: GameType[] = ['wordle', 'lake', 'quiz', 'wordLadder'];
+    const allGames: GameType[] = ['wordle', 'lake', 'quiz', 'wordLadder', 'target24'];
     const player = this.players.find(p => p.id === playerId);
     if (!player) return allGames;
     const dayRecord = player.history?.[dateKey];
@@ -309,6 +309,7 @@ class FamilyStore {
     if (gameType === 'lake') dayRecord.lakeScore = score;
     if (gameType === 'quiz') dayRecord.quizScore = score;
     if (gameType === 'wordLadder') dayRecord.wordLadderScore = score;
+    if (gameType === 'target24') dayRecord.target24Score = score;
 
     // Update streak logic
     if (player.lastPlayedDate !== dateKey) {
@@ -351,6 +352,7 @@ class FamilyStore {
       dayRecord.lakeScore = undefined;
       dayRecord.quizScore = undefined;
       dayRecord.wordLadderScore = undefined;
+      dayRecord.target24Score = undefined;
       dayRecord.scavengerScore = undefined;
       dayRecord.scavengerFoundIds = [];
       dayRecord.scavengerCompleted = false;

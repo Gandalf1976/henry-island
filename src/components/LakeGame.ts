@@ -166,12 +166,10 @@ export class LakeGame {
 
     // Valid word!
     const isNineLetter = word.length === 9;
-    const points = isNineLetter ? 6 : 1; // 1 pt base + 5 pts bonus
-    this.score += points;
 
     if (isNineLetter) {
       this.hasFoundNineLetterBonus = true;
-      this.flashNotice(`🌟 9-LETTER WORD BONUS! +5 EXTRA POINTS! 🌟`);
+      this.flashNotice(`🌟 9-LETTER WORD SOLVED! +5 BONUS POINTS! 🌟`);
       confetti({ particleCount: 75, spread: 60, origin: { y: 0.5 } });
       soundAudio.playVictory();
     } else {
@@ -180,13 +178,48 @@ export class LakeGame {
 
     this.foundWords.unshift({
       word,
-      points,
+      points: isNineLetter ? 5 : 0,
       isNineLetterBonus: isNineLetter
     });
+
+    this.recalculateScore();
 
     this.clearInput();
     this.renderLilypads();
     this.renderScoreHeader();
+  }
+
+  private recalculateScore(): void {
+    const count = this.foundWords.length;
+    let wordCountScore = 0;
+    if (count >= 15) {
+      wordCountScore = 10;
+    } else if (count >= 12) {
+      wordCountScore = 7;
+    } else if (count >= 10) {
+      wordCountScore = 5;
+    } else if (count >= 5) {
+      wordCountScore = 3;
+    } else {
+      wordCountScore = 0;
+    }
+
+    this.score = wordCountScore + (this.hasFoundNineLetterBonus ? 5 : 0);
+  }
+
+  private getScoreBreakdown(): { wordCountScore: number; tierDesc: string; nextTierHint: string } {
+    const count = this.foundWords.length;
+    if (count >= 15) {
+      return { wordCountScore: 10, tierDesc: '15+ words (10 pts max)', nextTierHint: 'Max word tier reached! 🏆' };
+    } else if (count >= 12) {
+      return { wordCountScore: 7, tierDesc: '12–14 words (7 pts)', nextTierHint: `${15 - count} more words to reach 10 pts!` };
+    } else if (count >= 10) {
+      return { wordCountScore: 5, tierDesc: '10–11 words (5 pts)', nextTierHint: `${12 - count} more words to reach 7 pts!` };
+    } else if (count >= 5) {
+      return { wordCountScore: 3, tierDesc: '5–9 words (3 pts)', nextTierHint: `${10 - count} more words to reach 5 pts!` };
+    } else {
+      return { wordCountScore: 0, tierDesc: '0–4 words (0 pts)', nextTierHint: `${5 - count} more words to reach 3 pts!` };
+    }
   }
 
   private flashNotice(msg: string): void {
@@ -237,8 +270,12 @@ export class LakeGame {
 
   private renderScoreHeader(): void {
     const scoreEl = document.getElementById('lake-score-badge');
+    const breakdown = this.getScoreBreakdown();
     if (scoreEl) {
-      scoreEl.textContent = `Score: ${this.score} pts (${this.foundWords.length} words)`;
+      scoreEl.innerHTML = `
+        <span class="text-amber-300 font-black">${this.score} pts</span>
+        <span class="text-sky-200">(${this.foundWords.length} words: ${breakdown.wordCountScore} pts${this.hasFoundNineLetterBonus ? ' + 5 bonus' : ''})</span>
+      `;
     }
   }
 
@@ -372,19 +409,33 @@ export class LakeGame {
               <h3 class="text-2xl font-black text-amber-300">TIME'S UP!</h3>
               <p class="text-sm font-semibold text-sky-100 mt-1">You discovered <span class="font-bold text-emerald-300">${this.foundWords.length} words</span> on the frozen lake!</p>
               
+              <!-- Score breakdown card -->
+              <div class="my-3 bg-slate-900/80 border border-sky-400/40 rounded-xl p-3 text-left text-xs space-y-1.5 max-w-sm mx-auto">
+                <div class="flex justify-between items-center text-sky-200">
+                  <span>Words Found (${this.foundWords.length} words):</span>
+                  <span class="font-bold text-emerald-300">${this.getScoreBreakdown().wordCountScore} pts (${this.getScoreBreakdown().tierDesc})</span>
+                </div>
+                <div class="flex justify-between items-center text-sky-200">
+                  <span>9-Letter Word ("${this.rootWord}"):</span>
+                  <span class="font-bold ${this.hasFoundNineLetterBonus ? 'text-amber-300' : 'text-slate-400'}">
+                    ${this.hasFoundNineLetterBonus ? '+5 pts (Solved!)' : '0 pts (Not found)'}
+                  </span>
+                </div>
+                <div class="border-t border-white/10 pt-1.5 flex justify-between items-center text-sm font-black">
+                  <span class="text-white">Total Lake Score:</span>
+                  <span class="text-amber-300 text-base">+${this.score} pts</span>
+                </div>
+              </div>
+
               ${
                 this.hasFoundNineLetterBonus
-                  ? `<div class="my-2 bg-amber-400 text-slate-900 font-black py-1.5 px-3 rounded-lg text-sm inline-block shadow">
+                  ? `<div class="my-1 bg-amber-400 text-slate-900 font-black py-1.5 px-3 rounded-lg text-xs inline-block shadow">
                       ⭐ 9-Letter Word Solved: "${this.rootWord}" (+5 Bonus!)
                      </div>`
                   : `<p class="text-xs text-sky-300 my-1">The 9-letter root word was: <span class="font-black text-amber-300 tracking-wider">${this.rootWord}</span></p>`
               }
 
-              <div class="my-3 text-3xl font-black text-emerald-400 bg-sky-900/80 py-2 px-4 rounded-xl inline-block border border-sky-500">
-                Total Score: +${this.score} pts
-              </div>
-
-              <p class="text-xs text-sky-200">Points recorded for today on the Island Snowman Leaderboard!</p>
+              <p class="text-xs text-sky-200 mt-2">Points recorded for today on the Island Snowman Leaderboard!</p>
               
               <button id="lake-done-btn" class="mt-4 w-full py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 font-black text-white rounded-xl shadow-lg transition">
                 Return to Island ▶

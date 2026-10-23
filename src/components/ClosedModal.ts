@@ -22,7 +22,8 @@ export class ClosedModal {
       wordle: { name: 'Henry-Wordle', location: 'Wordle Cottage', icon: '🟩' },
       lake: { name: 'Henry-Lake', location: 'Frozen Lake', icon: '🪷' },
       quiz: { name: 'Henry-Quiz', location: 'Quiz Observatory', icon: '🧠' },
-      wordLadder: { name: 'Henry Word Ladder', location: 'Word Ladder Mountain Lodge', icon: '🪜' }
+      wordLadder: { name: 'Henry Word Ladder', location: 'Word Ladder Mountain Lodge', icon: '🪜' },
+      target24: { name: 'Henry Target 24', location: 'Target 24 Math Chalet', icon: '🎯' }
     };
 
     const g = gameNames[this.gameType];

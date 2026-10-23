@@ -1,6 +1,7 @@
-import { DAILY_SCAVENGER_ITEMS } from '../data/scavengerItems';
+import { getDailyScavengerItems } from '../data/scavengerItems';
 import { familyStore } from '../state/familyStore';
 import { soundAudio } from '../utils/audio';
+import { getTodayDateKey } from '../utils/dailyClock';
 
 export class ScavengerHuntModal {
   private container: HTMLElement;
@@ -14,9 +15,11 @@ export class ScavengerHuntModal {
   }
 
   public render(): void {
+    const today = getTodayDateKey();
+    const todayItems = getDailyScavengerItems(today);
     const active = familyStore.getActivePlayer();
-    const foundIds = familyStore.getScavengerFoundIds(active.id);
-    const isCompleted = familyStore.isScavengerCompleted(active.id);
+    const foundIds = familyStore.getScavengerFoundIds(active.id, today);
+    const isCompleted = familyStore.isScavengerCompleted(active.id, today);
     const foundCount = foundIds.length;
 
     this.container.innerHTML = `
@@ -52,7 +55,7 @@ export class ScavengerHuntModal {
 
           <!-- Items Checklist -->
           <div class="flex-1 overflow-y-auto space-y-2 pr-1">
-            ${DAILY_SCAVENGER_ITEMS.map(item => {
+            ${todayItems.map(item => {
               const isFound = foundIds.includes(item.id);
               return `
                 <div class="p-3 rounded-2xl border transition ${

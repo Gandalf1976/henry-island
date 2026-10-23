@@ -144,6 +144,7 @@ export class GuideModal {
             <div class="flex flex-wrap gap-1.5 text-[11px] font-bold">
               <span class="px-2 py-1 rounded-lg bg-emerald-900/80 border border-emerald-500 text-emerald-200">🟩 Wordle</span>
               <span class="px-2 py-1 rounded-lg bg-amber-800/80 border border-amber-500 text-amber-200">🪜 Ladder</span>
+              <span class="px-2 py-1 rounded-lg bg-rose-950/80 border border-rose-400 text-rose-200">🎯 Target 24</span>
               <span class="px-2 py-1 rounded-lg bg-amber-700/80 border border-amber-400 text-amber-100">⛄ Podium</span>
               <span class="px-2 py-1 rounded-lg bg-amber-900/80 border border-amber-600 text-amber-200">📌 Board</span>
               <span class="px-2 py-1 rounded-lg bg-sky-800/80 border border-sky-400 text-sky-200">🪷 Lake</span>
@@ -231,7 +232,7 @@ export class GuideModal {
             <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
               <li>Make as many valid English words (3+ letters) as you can before the clock runs out.</li>
               <li>Each found word lands on a floating lilypad across the lake.</li>
-              <li><strong>Big Bonus</strong>: Figure out the full 9-letter anagram for an extra 5 points!</li>
+              <li>Tiered scoring awards up to <strong>10 points</strong> for 15+ words, plus a <strong>+5 point bonus</strong> for finding the 9-letter root word!</li>
             </ul>
           </div>
 
@@ -246,6 +247,23 @@ export class GuideModal {
             </div>
             <p class="text-xs text-slate-300 mb-1.5">10 rapid-fire multiple-choice questions on a 60-second timer.</p>
             <p class="text-xs text-slate-300">Covers Geography, Science & Nature, Entertainment, Sport, General Knowledge, and Music!</p>
+          </div>
+
+          <!-- Game 5: Target 24 -->
+          <div class="bg-white/5 border border-white/10 rounded-2xl p-3.5">
+            <div class="flex items-center justify-between mb-1">
+              <h4 class="font-black text-rose-300 text-sm flex items-center gap-1.5">
+                <span>🎯</span>
+                <span>Henry Target 24</span>
+              </h4>
+              <span class="text-[11px] px-2 py-0.5 rounded-full bg-rose-950/60 border border-rose-400 text-rose-200 font-bold">Math Chalet (SW)</span>
+            </div>
+            <p class="text-xs text-slate-300 mb-1.5">Use 4 daily numbers (1–10) and arithmetic operators (+, −, ×, ÷, parentheses) to make exactly 24!</p>
+            <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+              <li>You have <strong>90 seconds</strong> to formulate your math expression.</li>
+              <li>Once you click <strong>Lock In Formula</strong>, your sum is locked in permanently for today (no retry).</li>
+              <li>Scores up to <strong>10 points</strong> for hitting 24 exactly!</li>
+            </ul>
           </div>
 
           <!-- Bonus: Scavenger Hunt -->
@@ -310,12 +328,29 @@ export class GuideModal {
 
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <strong class="text-sky-300 block mb-1">🪷 Henry-Lake (120s timer)</strong>
-                <p class="text-slate-300 text-[11px]"><strong>1 point</strong> for each valid word submitted + <strong>5 bonus points</strong> for guessing the full 9-letter anagram word!</p>
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-1 text-center font-bold text-[10px] mb-1.5">
+                  <span class="bg-sky-950 border border-sky-500/50 p-1 rounded">15+ words: 10 pts</span>
+                  <span class="bg-sky-950 border border-sky-500/50 p-1 rounded">12–14 words: 7 pts</span>
+                  <span class="bg-sky-950 border border-sky-500/50 p-1 rounded">10–12 words: 5 pts</span>
+                  <span class="bg-sky-950 border border-sky-500/50 p-1 rounded">5–9 words: 3 pts</span>
+                  <span class="bg-slate-900 border border-slate-700 p-1 rounded">&lt;5 words: 0 pts</span>
+                </div>
+                <p class="text-amber-300 font-bold text-[11px]">⭐ +5 Bonus Points for finding the secret 9-letter root word!</p>
               </div>
 
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <strong class="text-indigo-300 block mb-1">🧠 Henry-Quiz (60s timer)</strong>
                 <p class="text-slate-300 text-[11px]"><strong>1 point</strong> per correct answer (10 questions = up to <strong>10 points</strong>).</p>
+              </div>
+
+              <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
+                <strong class="text-rose-300 block mb-1">🎯 Henry Target 24 (90s timer)</strong>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1 text-center font-bold text-[10px]">
+                  <span class="bg-rose-950 border border-rose-500/50 p-1 rounded">Exactly 24: 10 pts</span>
+                  <span class="bg-rose-950 border border-rose-500/50 p-1 rounded">Within 1 (23 or 25): 7 pts</span>
+                  <span class="bg-rose-950 border border-rose-500/50 p-1 rounded">Within 2 (22 or 26): 5 pts</span>
+                  <span class="bg-slate-900 border border-slate-700 p-1 rounded">Any other result: 1 pt</span>
+                </div>
               </div>
 
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
@@ -405,7 +440,7 @@ export class GuideModal {
             <span>Santa & Sleigh with Reindeer (South)</span>
           </h4>
           <p class="text-xs text-slate-300">
-            Santa is parked in his festive crimson-and-gold sleigh at the south beach along with two reindeer led by Rudolph!
+            Santa is parked in his festive crimson-and-gold sleigh piled high with wrapped presents, accompanied by joyful children and reindeer led by Rudolph! Walk up to hear Santa wave his golden bell and cheer "HO, HO, HO!" with his floating speech bubble.
           </p>
         </div>
 
