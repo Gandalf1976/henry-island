@@ -5,6 +5,7 @@ import { GuideModal } from './components/GuideModal';
 import { LakeGame } from './components/LakeGame';
 import { ManagePlayersModal } from './components/ManagePlayersModal';
 import { MessageBoardModal } from './components/MessageBoardModal';
+import { PreviousDayWinnersModal } from './components/PreviousDayWinnersModal';
 import { QuizGame } from './components/QuizGame';
 import { ScavengerHuntModal } from './components/ScavengerHuntModal';
 import { SnowmanPodiumModal } from './components/SnowmanPodium';
@@ -45,12 +46,15 @@ class App {
     this.setupUI();
     this.setupJoystick();
 
-    // 4. Prompt device player selection if first time on this device
+    // 4. Prompt device player selection if first time on this device, then check previous day's rankings
     setTimeout(() => {
       if (!familyStore.isDeviceLocked()) {
         new DevicePlayerSelectModal(() => {
           this.updateHeaderBadge();
+          this.checkAndShowPreviousDayModal();
         }).show();
+      } else {
+        this.checkAndShowPreviousDayModal();
       }
     }, 400);
   }
@@ -318,6 +322,23 @@ class App {
       toast.style.transition = 'opacity 0.5s ease';
       setTimeout(() => toast.remove(), 500);
     }, 3000);
+  }
+
+  private checkAndShowPreviousDayModal(): void {
+    const todayKey = getTodayDateKey();
+    const POPUP_SEEN_KEY = 'henry_island_yesterday_popup_seen_date';
+    const seenDate = localStorage.getItem(POPUP_SEEN_KEY);
+
+    if (seenDate !== todayKey) {
+      localStorage.setItem(POPUP_SEEN_KEY, todayKey);
+      const prevRanking = familyStore.getPreviousDayRanking();
+      if (prevRanking.hasParticipants) {
+        if (this.activeGameInstance || this.modalHost.children.length > 0) return;
+        new PreviousDayWinnersModal(this.modalHost, () => {
+          this.closeModal();
+        });
+      }
+    }
   }
 
   private openAvatarModal(): void {

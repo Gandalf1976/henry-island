@@ -10,6 +10,16 @@ export function getTodayDateKey(date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
+export function getYesterdayDateKey(todayKey = getTodayDateKey()): string {
+  const parts = todayKey.split('-').map(Number);
+  const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+  date.setUTCDate(date.getUTCDate() - 1);
+  const prevY = date.getUTCFullYear();
+  const prevM = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const prevD = String(date.getUTCDate()).padStart(2, '0');
+  return `${prevY}-${prevM}-${prevD}`;
+}
+
 export function getDateSeed(dateKey: string): number {
   // Simple deterministic hash of the date string
   let hash = 0;
@@ -34,8 +44,7 @@ export function getDailyLakeWord(dateKey: string): string {
 }
 
 export function getDailyQuizSet(dateKey: string): QuizQuestion[] {
-  const seed = getDateSeed(dateKey + '-quiz');
-  return getDailyQuizQuestions(seed);
+  return getDailyQuizQuestions(dateKey);
 }
 
 export function getDailyChallenge(dateKey = getTodayDateKey()): DailyChallengeInfo {

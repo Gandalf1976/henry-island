@@ -2,6 +2,7 @@ import { AVATAR_ROSTER } from '../data/avatars';
 import { familyStore } from '../state/familyStore';
 import { soundAudio } from '../utils/audio';
 import { drawSnowman } from '../utils/snowmanRenderer';
+import { PreviousDayWinnersModal } from './PreviousDayWinnersModal';
 
 export class SnowmanPodiumModal {
   private container: HTMLElement;
@@ -29,6 +30,11 @@ export class SnowmanPodiumModal {
             <h2 class="text-2xl sm:text-3xl font-black text-amber-300 tracking-tight">Henry Island Leaderboard</h2>
             <p class="text-xs sm:text-sm text-slate-300 font-medium">Ranked by Daily Average Score (Total Points ÷ Days Played)</p>
           </div>
+
+          <!-- View Previous Day's Winners Button -->
+          <button id="view-yesterday-winners-btn" class="w-full mb-3 py-2.5 px-4 bg-gradient-to-r from-amber-500/25 via-yellow-500/30 to-amber-500/25 hover:from-amber-500/40 hover:to-yellow-500/40 border-2 border-amber-400/80 rounded-2xl text-amber-300 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition transform active:scale-98 cursor-pointer">
+            <span>🏆</span> View Previous Day's Winners & Rankings <span>▶</span>
+          </button>
 
           <!-- Interactive Podium Canvas -->
           <div class="w-full bg-gradient-to-b from-indigo-950/90 to-slate-900/90 rounded-2xl p-2.5 border-2 border-indigo-700/60 shadow-inner flex justify-center mb-4">
@@ -163,6 +169,15 @@ export class SnowmanPodiumModal {
     });
 
     // Listeners
+    this.container.querySelector('#view-yesterday-winners-btn')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      new PreviousDayWinnersModal(
+        this.container,
+        () => this.onCloseCallback(),
+        () => this.render()
+      );
+    });
+
     this.container.querySelector('#close-podium-btn')?.addEventListener('click', () => {
       soundAudio.playButtonClick();
       this.onCloseCallback();

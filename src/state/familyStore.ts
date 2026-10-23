@@ -1,6 +1,6 @@
 import { AVATAR_ROSTER, DEFAULT_FAMILY_MEMBERS } from '../data/avatars';
 import { BulletinMessage, GameType, PlayerProfile, PlayerScoreStats } from '../types';
-import { getTodayDateKey } from '../utils/dailyClock';
+import { getTodayDateKey, getYesterdayDateKey } from '../utils/dailyClock';
 
 const STORAGE_KEY = 'henry_island_family_data_v1';
 const ACTIVE_PLAYER_KEY = 'henry_island_active_player_id';
@@ -13,6 +13,26 @@ export interface LeaderboardEntry {
   player: PlayerProfile;
   stats: PlayerScoreStats;
   isPodium: boolean;
+}
+
+export interface DailyParticipantResult {
+  rank: number;
+  player: PlayerProfile;
+  totalDayScore: number;
+  completedGames: GameType[];
+  wordleScore?: number;
+  lakeScore?: number;
+  quizScore?: number;
+  wordLadderScore?: number;
+  target24Score?: number;
+  scavengerScore?: number;
+}
+
+export interface PreviousDayRankingResult {
+  dateKey: string;
+  dateFormatted: string;
+  entries: DailyParticipantResult[];
+  hasParticipants: boolean;
 }
 
 class FamilyStore {
@@ -262,6 +282,67 @@ class FamilyStore {
       stats: item.stats,
       isPodium: idx < 3
     }));
+  }
+
+  // --- Previous Day Ranking & Winners ---
+
+  public getPreviousDayRanking(targetDateKey?: string): PreviousDayRankingResult {
+    const dateKey = targetDateKey || getYesterdayDateKey(getTodayDateKey());
+    
+    let dateFormatted = dateKey;
+    try {
+      const [y, m, d] = dateKey.split('-').map(Number);
+      const dateObj = new Date(Date.UTC(y, m - 1, d));
+      dateFormatted = dateObj.toLocaleDateString(undefined, {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      dateFormatted = dateKey;
+    }
+
+    const participants: Omit<DailyParticipantResult, 'rank'>[] = [];
+
+    for (const player of this.players) {
+      const rec = player.history?.[dateKey];
+      if (rec && ((rec.completedGames && rec.completedGames.length > 0) || (rec.totalDayScore || 0) > 0)) {
+        participants.push({
+          player,
+          totalDayScore: rec.totalDayScore || 0,
+          completedGames: rec.completedGames || [],
+          wordleScore: rec.wordleScore,
+          lakeScore: rec.lakeScore,
+          quizScore: rec.quizScore,
+          wordLadderScore: rec.wordLadderScore,
+          target24Score: rec.target24Score,
+          scavengerScore: rec.scavengerScore
+        });
+      }
+    }
+
+    // Sort descending by totalDayScore, then by completedGames count, then player name
+    participants.sort((a, b) => {
+      if (b.totalDayScore !== a.totalDayScore) {
+        return b.totalDayScore - a.totalDayScore;
+      }
+      if (b.completedGames.length !== a.completedGames.length) {
+        return b.completedGames.length - a.completedGames.length;
+      }
+      return a.player.name.localeCompare(b.player.name);
+    });
+
+    const entries: DailyParticipantResult[] = participants.map((p, idx) => ({
+      ...p,
+      rank: idx + 1
+    }));
+
+    return {
+      dateKey,
+      dateFormatted,
+      entries,
+      hasParticipants: entries.length > 0
+    };
   }
 
   // --- Game Status & Daily Logic ---
