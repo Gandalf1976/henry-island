@@ -32,7 +32,7 @@ export class ScavengerHuntModal {
               <span class="text-2xl">🧭</span>
               <div>
                 <h3 class="text-lg font-black text-amber-300">Daily Scavenger Hunt</h3>
-                <p class="text-xs text-sky-200">Find all 5 holiday items across the island for +2 points!</p>
+                <p class="text-xs text-sky-200">Find all 5 holiday items across the island, lake & ocean for +2 points!</p>
               </div>
             </div>
             <button id="scavenger-close-btn" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-sm transition">

@@ -3148,9 +3148,9 @@ function getEpochDay(input: number | string): number {
 }
 
 /**
- * Deterministically retrieves 10 questions for the given date.
+ * Deterministically retrieves 15 questions for the given date (extended from 10).
  * Guarantees ZERO question overlap between any consecutive/subsequent days.
- * Rotates across all 6 categories smoothly without repetitions for 24+ days.
+ * Rotates across all 6 categories smoothly (3 categories provide 3 questions, 3 provide 2 questions = 15).
  */
 export function getDailyQuizQuestions(dateInput: number | string): QuizQuestion[] {
   const day = getEpochDay(dateInput);
@@ -3164,24 +3164,22 @@ export function getDailyQuizQuestions(dateInput: number | string): QuizQuestion[
   ];
 
   const pools = categories.map(cat => TEEN_QUIZ_QUESTIONS.filter(q => q.category === cat));
-  const cycle = Math.floor(day / 6);
-  const dayInCycle = ((day % 6) + 6) % 6;
   const selected: QuizQuestion[] = [];
 
   for (let c = 0; c < 6; c++) {
     const pool = pools[c];
     if (!pool || pool.length === 0) continue;
 
-    let prevInCycle = 0;
-    for (let d = 0; d < dayInCycle; d++) {
-      const gives2 = [0, 1, 2, 3].includes(((c - d) % 6 + 6) % 6);
-      prevInCycle += gives2 ? 2 : 1;
+    const normalizedDay = ((day % 100000) + 100000) % 100000;
+    let offset = 0;
+    for (let d = 0; d < (normalizedDay % pool.length); d++) {
+      const count = ((c + d) % 6 < 3) ? 3 : 2;
+      offset += count;
     }
 
-    const gives2Today = [0, 1, 2, 3].includes(((c - dayInCycle) % 6 + 6) % 6);
-    const countToday = gives2Today ? 2 : 1;
+    const countToday = ((c + normalizedDay) % 6 < 3) ? 3 : 2;
+    const startIdx = offset % pool.length;
 
-    const startIdx = (cycle * 10 + prevInCycle) % pool.length;
     for (let i = 0; i < countToday; i++) {
       const qIdx = (startIdx + i) % pool.length;
       selected.push(pool[qIdx]);

@@ -90,6 +90,12 @@ export class IslandWorld3D {
   private zoomLevel: number = 1.0;
   private baseCameraOffset = new THREE.Vector3(0, 25, 29);
 
+  // Sailboat & Water Navigation
+  private playerMode: 'avatar' | 'sailboat_lake' | 'sailboat_ocean' = 'avatar';
+  private sailboatGroup!: THREE.Group;
+  private boatPennant?: THREE.Mesh;
+  private boatWakeTimer: number = 0;
+
   // Proximity prompt
   private promptEl: HTMLElement | null = null;
   private currentActiveTarget: (typeof this.interactivePortals)[0] | null = null;
@@ -139,8 +145,9 @@ export class IslandWorld3D {
     this.buildPenguins();
     this.buildSnowfall();
 
-    // 6. Player
+    // 6. Player & Sailboat
     this.buildPlayer();
+    this.buildSailboat();
 
     // 7. Interactive Portals Registration
     this.setupPortals();
@@ -515,28 +522,59 @@ export class IslandWorld3D {
       lakeGroup.add(piling);
     });
 
-    // Railing along lake edge to prevent walking into water
+    // Railings flanking the dock with an open central boat slipway leading directly into the water
     const railMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 });
-    const railGeo = new THREE.BoxGeometry(0.3, 1.4, 14);
-    const railing = new THREE.Mesh(railGeo, railMat);
-    railing.position.set(-17.2, 0.8, 0);
-    railing.castShadow = true;
-    lakeGroup.add(railing);
 
-    // Rail posts
-    [-6, -2, 2, 6].forEach(rz => {
+    // North railing section (Z from +2.8 to +7)
+    const railNorthGeo = new THREE.BoxGeometry(0.3, 1.4, 4.2);
+    const railNorth = new THREE.Mesh(railNorthGeo, railMat);
+    railNorth.position.set(-17.2, 0.8, 4.9);
+    railNorth.castShadow = true;
+    lakeGroup.add(railNorth);
+
+    // South railing section (Z from -7 to -2.8)
+    const railSouthGeo = new THREE.BoxGeometry(0.3, 1.4, 4.2);
+    const railSouth = new THREE.Mesh(railSouthGeo, railMat);
+    railSouth.position.set(-17.2, 0.8, -4.9);
+    railSouth.castShadow = true;
+    lakeGroup.add(railSouth);
+
+    // Rail posts at outer corners and flanking the boat slipway
+    [-6.5, -2.8, 2.8, 6.5].forEach(rz => {
       const post = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.6, 0.4), railMat);
       post.position.set(-17.2, 0.8, rz);
       lakeGroup.add(post);
     });
 
-    // Festive Wreath
-    const wreathGeo = new THREE.TorusGeometry(0.9, 0.3, 8, 16);
+    // Nautical Mooring Lanterns flanking the boat slipway
+    [-2.8, 2.8].forEach(lz => {
+      const lanternGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.45, 8);
+      const lanternMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xf59e0b, emissiveIntensity: 0.65 });
+      const lantern = new THREE.Mesh(lanternGeo, lanternMat);
+      lantern.position.set(-17.2, 1.8, lz);
+      lakeGroup.add(lantern);
+    });
+
+    // Wooden Boat Slipway / Ramp leading gently into the lake water in the center opening
+    const slipwayGeo = new THREE.BoxGeometry(4.2, 0.28, 5.2);
+    const slipway = new THREE.Mesh(slipwayGeo, pierMat);
+    slipway.position.set(-15.1, -0.06, 0);
+    slipway.rotation.z = -0.10; // gently sloping down towards lake water
+    slipway.receiveShadow = true;
+    lakeGroup.add(slipway);
+
+    // Festive Wreaths
+    const wreathGeo = new THREE.TorusGeometry(0.7, 0.22, 8, 16);
     const wreathMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6 });
-    const wreath = new THREE.Mesh(wreathGeo, wreathMat);
-    wreath.position.set(-17.4, 1.0, 0);
-    wreath.rotation.y = Math.PI / 2;
-    lakeGroup.add(wreath);
+    const wreath1 = new THREE.Mesh(wreathGeo, wreathMat);
+    wreath1.position.set(-17.4, 0.9, -4.9);
+    wreath1.rotation.y = Math.PI / 2;
+    lakeGroup.add(wreath1);
+
+    const wreath2 = new THREE.Mesh(wreathGeo, wreathMat);
+    wreath2.position.set(-17.4, 0.9, 4.9);
+    wreath2.rotation.y = Math.PI / 2;
+    lakeGroup.add(wreath2);
 
     // Lake Signpost (standing prominently on the dry wooden dock entrance, facing SOUTH!)
     // Absolutely NO obstruction from the bulletin board (which is over at the West plaza)!
@@ -544,6 +582,12 @@ export class IslandWorld3D {
     lakeSign.position.set(-24, 0, -3.5);
     lakeSign.rotation.set(0, 0, 0); // Faces South!
     lakeGroup.add(lakeSign);
+
+    // Dock Signpost: Sailboat Launch
+    const boatSign = this.createSignpost('BOAT DOCK', 'Walk In to Sail ⛵');
+    boatSign.position.set(-21, 0, 4.2);
+    boatSign.rotation.set(0, 0, 0); // Faces South!
+    lakeGroup.add(boatSign);
 
     this.scene.add(lakeGroup);
 
@@ -2378,6 +2422,278 @@ export class IslandWorld3D {
     this.scene.add(this.playerGroup);
   }
 
+  /**
+   * Calculates the organic multi-lobed island coastline radius at any polar angle.
+   */
+  private getIslandRadius(angle: number): number {
+    let theta = angle;
+    while (theta < 0) theta += Math.PI * 2;
+    while (theta >= Math.PI * 2) theta -= Math.PI * 2;
+
+    let r = 84;
+    r += Math.cos(2 * theta) * 12;
+    r -= Math.sin(3 * theta) * 8;
+    r += Math.cos(5 * theta + 0.4) * 6;
+    r += Math.sin(theta - 0.8) * 10;
+
+    // Regional lobe extensions:
+    if (theta > 4.2 && theta < 5.2) r += 9; // North ridge for Wordle
+    if (theta > 5.1 && theta < 6.0) r += 11; // North-East peninsula for Elves
+    if (theta > 6.0 || theta < 0.5) r += 7; // East cove for Henry Lake
+    if (theta > 0.5 && theta < 1.3) r += 12; // South-East mountain for Word Ladder
+    if (theta > 1.3 && theta < 1.9) r += 7; // South beach dock for Santa
+    if (theta > 1.9 && theta < 2.8) r += 9; // South-West meadow for Cozy Hearth
+    if (theta > 2.8 && theta < 3.8) r += 7; // West bluff for Quiz Lodge
+
+    return r;
+  }
+
+  /**
+   * Builds 3D festive sailboat for water navigation on Henry Lake and the open ocean.
+   */
+  private buildSailboat(): void {
+    this.sailboatGroup = new THREE.Group();
+    this.sailboatGroup.position.set(0, 1.7, 0);
+    this.sailboatGroup.visible = false;
+
+    // 1. Rich Teak Wood Hull
+    const hullMat = new THREE.MeshStandardMaterial({
+      color: 0x92400e,
+      roughness: 0.65,
+      metalness: 0.1
+    });
+
+    // Hull Midsection & Transom
+    const hullBase = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.95, 3.4), hullMat);
+    hullBase.position.set(0, 0.48, -0.2);
+    hullBase.castShadow = true;
+    hullBase.receiveShadow = true;
+    this.sailboatGroup.add(hullBase);
+
+    // Pointed Bow Wedge (Facing +Z)
+    const bowShape = new THREE.Shape();
+    bowShape.moveTo(-1.2, 0);
+    bowShape.lineTo(1.2, 0);
+    bowShape.lineTo(0, 1.6);
+    bowShape.closePath();
+    const bowGeo = new THREE.ExtrudeGeometry(bowShape, { depth: 0.95, bevelEnabled: false });
+    const bowMesh = new THREE.Mesh(bowGeo, hullMat);
+    bowMesh.rotation.x = -Math.PI / 2;
+    bowMesh.position.set(0, 0.01, 1.5);
+    bowMesh.castShadow = true;
+    this.sailboatGroup.add(bowMesh);
+
+    // Festive Red Waterline Stripes
+    const stripeMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4 });
+    const stripeL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 3.4), stripeMat);
+    stripeL.position.set(-1.22, 0.55, -0.2);
+    this.sailboatGroup.add(stripeL);
+    const stripeR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 3.4), stripeMat);
+    stripeR.position.set(1.22, 0.55, -0.2);
+    this.sailboatGroup.add(stripeR);
+
+    // Wooden Deck
+    const deckMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.8 });
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, 3.2), deckMat);
+    deck.position.set(0, 0.96, -0.2);
+    this.sailboatGroup.add(deck);
+
+    // Cockpit Bench Recess (at stern, -Z)
+    const cockpitMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
+    const cockpit = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.28, 1.3), cockpitMat);
+    cockpit.position.set(0, 1.05, -1.0);
+    this.sailboatGroup.add(cockpit);
+
+    // Wooden Tiller / Rudder Post
+    const tillerMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.7 });
+    const rudderPost = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.7, 8), tillerMat);
+    rudderPost.position.set(0, 1.25, -1.8);
+    this.sailboatGroup.add(rudderPost);
+
+    const tillerHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.9, 8), tillerMat);
+    tillerHandle.rotation.x = Math.PI / 2;
+    tillerHandle.position.set(0, 1.45, -1.4);
+    this.sailboatGroup.add(tillerHandle);
+
+    // Mast (Tall vertical spruce spar)
+    const mastMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.7 });
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 6.2, 12), mastMat);
+    mast.position.set(0, 4.0, 0.6);
+    mast.castShadow = true;
+    this.sailboatGroup.add(mast);
+
+    // Boom (Horizontal spar extending back toward stern)
+    const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.7, 8), mastMat);
+    boom.rotation.x = Math.PI / 2;
+    boom.position.set(0, 1.95, -0.75);
+    this.sailboatGroup.add(boom);
+
+    // Bowsprit (Pole extending forward past bow)
+    const bowsprit = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 8), mastMat);
+    bowsprit.rotation.x = Math.PI / 2.3;
+    bowsprit.position.set(0, 1.05, 3.5);
+    this.sailboatGroup.add(bowsprit);
+
+    // Canvas Sails Material
+    const sailMat = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.5,
+      side: THREE.DoubleSide
+    });
+
+    // Festive Triangular Main Sail
+    const sailGeo = new THREE.BufferGeometry();
+    const sailVertices = new Float32Array([
+      0, 2.0, 0.6,
+      0, 2.0, -2.0,
+      0, 6.8, 0.6,
+
+      0, 6.8, 0.6,
+      0, 2.0, -2.0,
+      0, 2.0, 0.6
+    ]);
+    sailGeo.setAttribute('position', new THREE.BufferAttribute(sailVertices, 3));
+    sailGeo.computeVertexNormals();
+    const mainSail = new THREE.Mesh(sailGeo, sailMat);
+    this.sailboatGroup.add(mainSail);
+
+    // Red Festive Chevron Stripe across Main Sail
+    const stripeGeo = new THREE.BufferGeometry();
+    const stripeVertices = new Float32Array([
+      0, 3.6, 0.6,
+      0, 3.6, -1.0,
+      0, 4.2, 0.6,
+
+      0, 4.2, 0.6,
+      0, 3.6, -1.0,
+      0, 4.2, -0.8
+    ]);
+    stripeGeo.setAttribute('position', new THREE.BufferAttribute(stripeVertices, 3));
+    stripeGeo.computeVertexNormals();
+    const sailStripe = new THREE.Mesh(stripeGeo, new THREE.MeshStandardMaterial({
+      color: 0xdc2626,
+      side: THREE.DoubleSide
+    }));
+    this.sailboatGroup.add(sailStripe);
+
+    // Jib / Fore Sail (Triangular front sail)
+    const jibGeo = new THREE.BufferGeometry();
+    const jibVertices = new Float32Array([
+      0, 1.15, 3.0,
+      0, 1.6, 0.8,
+      0, 5.5, 0.6,
+
+      0, 5.5, 0.6,
+      0, 1.6, 0.8,
+      0, 1.15, 3.0
+    ]);
+    jibGeo.setAttribute('position', new THREE.BufferAttribute(jibVertices, 3));
+    jibGeo.computeVertexNormals();
+    const jibSail = new THREE.Mesh(jibGeo, sailMat);
+    this.sailboatGroup.add(jibSail);
+
+    // Masthead Golden Cap
+    const capGeo = new THREE.SphereGeometry(0.16, 10, 10);
+    const capMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8, roughness: 0.2 });
+    const mastCap = new THREE.Mesh(capGeo, capMat);
+    mastCap.position.set(0, 7.1, 0.6);
+    this.sailboatGroup.add(mastCap);
+
+    // Fluttering Pennant Flag on Mast Top
+    const flagGeo = new THREE.BufferGeometry();
+    const flagVertices = new Float32Array([
+      0, 7.1, 0.6,
+      0, 6.7, 0.6,
+      0, 6.9, -0.6,
+
+      0, 6.9, -0.6,
+      0, 6.7, 0.6,
+      0, 7.1, 0.6
+    ]);
+    flagGeo.setAttribute('position', new THREE.BufferAttribute(flagVertices, 3));
+    flagGeo.computeVertexNormals();
+    const flagMat = new THREE.MeshStandardMaterial({ color: 0xef4444, side: THREE.DoubleSide });
+    this.boatPennant = new THREE.Mesh(flagGeo, flagMat);
+    this.sailboatGroup.add(this.boatPennant);
+
+    // Lifebuoy ring on boat side
+    const buoyGeo = new THREE.TorusGeometry(0.28, 0.08, 8, 16);
+    const buoyMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.5 });
+    const buoy = new THREE.Mesh(buoyGeo, buoyMat);
+    buoy.position.set(1.25, 0.82, -0.5);
+    buoy.rotation.y = Math.PI / 2;
+    this.sailboatGroup.add(buoy);
+
+    // Active Captain seated at helm
+    const captainGroup = new THREE.Group();
+    captainGroup.position.set(0, 1.25, -0.85);
+
+    // Captain body
+    const capBody = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.36, 0.48, 0.95, 10),
+      new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.7 })
+    );
+    capBody.position.y = 0.48;
+    captainGroup.add(capBody);
+
+    // Captain head
+    const capHead = new THREE.Mesh(
+      new THREE.SphereGeometry(0.36, 12, 12),
+      new THREE.MeshStandardMaterial({ color: 0xffedd5, roughness: 0.5 })
+    );
+    capHead.position.y = 1.2;
+    captainGroup.add(capHead);
+
+    // Captain Beanie Hat
+    const capHat = new THREE.Mesh(
+      new THREE.ConeGeometry(0.4, 0.55, 12),
+      new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.6 })
+    );
+    capHat.position.set(0, 1.55, -0.05);
+    captainGroup.add(capHat);
+
+    // Pom pom
+    const pom = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffffff })
+    );
+    pom.position.set(0, 1.85, -0.05);
+    captainGroup.add(pom);
+
+    this.sailboatGroup.add(captainGroup);
+
+    this.scene.add(this.sailboatGroup);
+  }
+
+  /**
+   * Sets player mode: 'avatar' | 'sailboat_lake' | 'sailboat_ocean'
+   */
+  private setPlayerMode(mode: 'avatar' | 'sailboat_lake' | 'sailboat_ocean'): void {
+    if (this.playerMode === mode) return;
+    this.playerMode = mode;
+
+    if (mode === 'avatar') {
+      this.playerGroup.visible = true;
+      this.sailboatGroup.visible = false;
+      this.playerPos.y = 1.8;
+      this.playerGroup.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
+      playSound('waterSplash');
+    } else {
+      this.playerGroup.visible = false;
+      this.sailboatGroup.visible = true;
+      if (mode === 'sailboat_lake') {
+        this.playerPos.y = 1.70;
+        this.showCollectToast('⛵ Boarded Sailboat on Henry Lake! Return to the dock sign to step back onto land.');
+      } else {
+        this.playerPos.y = -0.40;
+        this.showCollectToast('⛵ Set Sail on the Open Ocean! You can re-enter the island at any point along the coast.');
+      }
+      this.sailboatGroup.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
+      this.sailboatGroup.rotation.y = this.playerTargetRotation;
+      playSound('waterSplash');
+    }
+  }
+
   private setupPortals(): void {
     this.interactivePortals = [
       {
@@ -2389,8 +2705,8 @@ export class IslandWorld3D {
       },
       {
         id: 'lake',
-        pos: new THREE.Vector3(26, 1.8, 4),
-        radius: 8,
+        pos: new THREE.Vector3(25, 1.8, 1),
+        radius: 6.5,
         title: '🪷 Henry-Lake',
         actionText: 'Tap or Press Space to Play Lake'
       },
@@ -2583,6 +2899,7 @@ export class IslandWorld3D {
   public teleportTo(id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa'): void {
     const portal = this.interactivePortals.find(p => p.id === id);
     if (portal) {
+      this.setPlayerMode('avatar');
       this.playerPos.copy(portal.pos);
       this.playerPos.y = 1.8;
       this.playerGroup.position.copy(this.playerPos);
@@ -2651,54 +2968,129 @@ export class IslandWorld3D {
 
     const len = Math.hypot(dx, dz);
     if (len > 0.05) {
-      const moveSpeed = 16.0;
+      const moveSpeed = this.playerMode === 'avatar' ? 16.0 : 19.0;
       const normX = dx / Math.max(1, len);
       const normZ = dz / Math.max(1, len);
 
       this.playerPos.x += normX * moveSpeed * delta;
       this.playerPos.z += normZ * moveSpeed * delta;
-
-      // Island border boundary clamp (keep player on land)
-      const currentDist = Math.hypot(this.playerPos.x, this.playerPos.z);
-      if (currentDist > 80) {
-        this.playerPos.x = (this.playerPos.x / currentDist) * 80;
-        this.playerPos.z = (this.playerPos.z / currentDist) * 80;
-      }
-
-      // Lake boundary collision (prevent walking into the frozen lake)
-      const distToLakeCenter = Math.hypot(this.playerPos.x - 48, this.playerPos.z - 4);
-      if (distToLakeCenter < 19.5) {
-        const angle = Math.atan2(this.playerPos.z - 4, this.playerPos.x - 48);
-        this.playerPos.x = 48 + Math.cos(angle) * 19.5;
-        this.playerPos.z = 4 + Math.sin(angle) * 19.5;
-      }
-
-      this.playerGroup.position.x = this.playerPos.x;
-      this.playerGroup.position.z = this.playerPos.z;
-
       this.playerTargetRotation = Math.atan2(normX, normZ);
-      this.playerGroup.rotation.y = THREE.MathUtils.lerp(
-        this.playerGroup.rotation.y,
-        this.playerTargetRotation,
-        0.18
-      );
 
-      // Walk limb cycle
-      this.walkCycle += delta * 14;
-      const legAngle = Math.sin(this.walkCycle) * 0.65;
-      this.playerLegL.rotation.x = legAngle;
-      this.playerLegR.rotation.x = -legAngle;
-      this.playerArmL.rotation.x = -legAngle * 0.8;
-      this.playerArmR.rotation.x = legAngle * 0.8;
+      // 1. HUMAN AVATAR MODE
+      if (this.playerMode === 'avatar') {
+        // A. Henry Lake Entry: Walking off the dock slipway near the Henry Lake sign
+        const distToLake = Math.hypot(this.playerPos.x - 48, this.playerPos.z - 4);
+        const isNearLakeDockSlip = this.playerPos.x >= 28.0 && Math.abs(this.playerPos.z - 4) <= 4.5;
 
-      if (Math.sin(this.walkCycle) > 0.95 && Math.random() < 0.25) {
-        playSound('snowStep');
+        if (isNearLakeDockSlip && distToLake < 20.5) {
+          // Board Sailboat on Henry Lake!
+          this.setPlayerMode('sailboat_lake');
+          this.playerPos.x = 29.5;
+        } else if (distToLake < 19.8) {
+          // Block walking into lake anywhere else
+          const angle = Math.atan2(this.playerPos.z - 4, this.playerPos.x - 48);
+          this.playerPos.x = 48 + Math.cos(angle) * 19.8;
+          this.playerPos.z = 4 + Math.sin(angle) * 19.8;
+        }
+
+        // B. Ocean Entry: Walking past the island beach coastline into the open sea
+        const angleFromCenter = Math.atan2(this.playerPos.z, this.playerPos.x);
+        const coastRadius = this.getIslandRadius(angleFromCenter);
+        const distFromCenter = Math.hypot(this.playerPos.x, this.playerPos.z);
+        if (distFromCenter > coastRadius + 1.8) {
+          // Board Sailboat on the Open Ocean!
+          this.setPlayerMode('sailboat_ocean');
+        }
+
+        // Limb walk cycle
+        this.walkCycle += delta * 14;
+        const legAngle = Math.sin(this.walkCycle) * 0.65;
+        this.playerLegL.rotation.x = legAngle;
+        this.playerLegR.rotation.x = -legAngle;
+        this.playerArmL.rotation.x = -legAngle * 0.8;
+        this.playerArmR.rotation.x = legAngle * 0.8;
+
+        if (Math.sin(this.walkCycle) > 0.95 && Math.random() < 0.25) {
+          playSound('snowStep');
+        }
+      }
+      // 2. SAILBOAT ON HENRY LAKE MODE
+      else if (this.playerMode === 'sailboat_lake') {
+        // Exit only at the dock entrance where the player entered
+        const isAtLakeDockSlip = this.playerPos.x <= 28.2 && Math.abs(this.playerPos.z - 4) <= 4.5;
+        if (isAtLakeDockSlip) {
+          // Disembark back onto the dock as human avatar
+          this.setPlayerMode('avatar');
+          this.playerPos.x = 27.0;
+          this.playerPos.y = 1.8;
+          this.showCollectToast('🚶 Stepped back onto the Henry Lake dock!');
+        } else {
+          // Constrain movement: Navigate around Henry Lake ONLY!
+          const distToLake = Math.hypot(this.playerPos.x - 48, this.playerPos.z - 4);
+          if (distToLake >= 19.5) {
+            const angle = Math.atan2(this.playerPos.z - 4, this.playerPos.x - 48);
+            this.playerPos.x = 48 + Math.cos(angle) * 19.5;
+            this.playerPos.z = 4 + Math.sin(angle) * 19.5;
+          }
+        }
+
+        // Water sounds while sailing
+        this.boatWakeTimer += delta;
+        if (this.boatWakeTimer > 0.8 && Math.random() < 0.3) {
+          playSound('waterSplash');
+          this.boatWakeTimer = 0;
+        }
+      }
+      // 3. SAILBOAT ON OPEN OCEAN MODE
+      else if (this.playerMode === 'sailboat_ocean') {
+        // Outer ocean limit
+        const distFromCenter = Math.hypot(this.playerPos.x, this.playerPos.z);
+        if (distFromCenter > 240) {
+          this.playerPos.x = (this.playerPos.x / distFromCenter) * 240;
+          this.playerPos.z = (this.playerPos.z / distFromCenter) * 240;
+        }
+
+        // Re-enter island at ANY point along the coastline!
+        const angleFromCenter = Math.atan2(this.playerPos.z, this.playerPos.x);
+        const coastRadius = this.getIslandRadius(angleFromCenter);
+        if (distFromCenter <= coastRadius + 0.8) {
+          // Stepped ashore -> turn back into avatar!
+          this.setPlayerMode('avatar');
+          this.playerPos.y = 1.8;
+          this.showCollectToast('🚶 Stepped ashore onto Henry Island!');
+        }
+
+        // Water sounds while sailing
+        this.boatWakeTimer += delta;
+        if (this.boatWakeTimer > 0.8 && Math.random() < 0.3) {
+          playSound('waterSplash');
+          this.boatWakeTimer = 0;
+        }
+      }
+
+      // Update positions and rotations
+      if (this.playerMode === 'avatar') {
+        this.playerGroup.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
+        this.playerGroup.rotation.y = THREE.MathUtils.lerp(
+          this.playerGroup.rotation.y,
+          this.playerTargetRotation,
+          0.18
+        );
+      } else {
+        this.sailboatGroup.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
+        this.sailboatGroup.rotation.y = THREE.MathUtils.lerp(
+          this.sailboatGroup.rotation.y,
+          this.playerTargetRotation,
+          0.14
+        );
       }
     } else {
-      this.playerLegL.rotation.x = THREE.MathUtils.lerp(this.playerLegL.rotation.x, 0, 0.2);
-      this.playerLegR.rotation.x = THREE.MathUtils.lerp(this.playerLegR.rotation.x, 0, 0.2);
-      this.playerArmL.rotation.x = THREE.MathUtils.lerp(this.playerArmL.rotation.x, 0, 0.2);
-      this.playerArmR.rotation.x = THREE.MathUtils.lerp(this.playerArmR.rotation.x, 0, 0.2);
+      if (this.playerMode === 'avatar') {
+        this.playerLegL.rotation.x = THREE.MathUtils.lerp(this.playerLegL.rotation.x, 0, 0.2);
+        this.playerLegR.rotation.x = THREE.MathUtils.lerp(this.playerLegR.rotation.x, 0, 0.2);
+        this.playerArmL.rotation.x = THREE.MathUtils.lerp(this.playerArmL.rotation.x, 0, 0.2);
+        this.playerArmR.rotation.x = THREE.MathUtils.lerp(this.playerArmR.rotation.x, 0, 0.2);
+      }
     }
 
     // Camera following player with smooth zoom interpolation
@@ -2713,6 +3105,21 @@ export class IslandWorld3D {
   }
 
   private checkProximity(): void {
+    if (this.playerMode !== 'avatar') {
+      if (this.currentActiveTarget) {
+        this.currentActiveTarget = null;
+        if (this.promptEl) {
+          this.promptEl.classList.add('opacity-0', 'scale-95');
+          setTimeout(() => {
+            if (!this.currentActiveTarget) {
+              this.promptEl?.classList.add('hidden');
+            }
+          }, 180);
+        }
+      }
+      return;
+    }
+
     let nearestPortal: (typeof this.interactivePortals)[0] | null = null;
     let minDist = Infinity;
 
@@ -2768,8 +3175,9 @@ export class IslandWorld3D {
 
       if (!foundIds.includes(item.id)) {
         item.group.visible = true;
-        const dist = this.playerPos.distanceTo(item.basePos);
-        if (dist <= 3.5) {
+        const pickupRadius = this.playerMode === 'avatar' ? 3.8 : 5.5;
+        const dist = Math.hypot(this.playerPos.x - item.basePos.x, this.playerPos.z - item.basePos.z);
+        if (dist <= pickupRadius) {
           // Player collected item!
           const result = familyStore.recordScavengerItemFound(item.id, active.id);
           if (result.newlyFound) {
@@ -2802,7 +3210,20 @@ export class IslandWorld3D {
     // 1. Player Movement & Camera
     this.updateMovement(delta);
 
-    // 2. Proximity checks
+    // 2. Sailboat Bobbing on Water
+    if (this.playerMode !== 'avatar') {
+      const bobY = Math.sin(time * 3.0) * 0.08;
+      const rollZ = Math.sin(time * 2.2) * 0.04;
+      const pitchX = Math.cos(time * 1.8) * 0.03;
+      this.sailboatGroup.position.y = this.playerPos.y + bobY;
+      this.sailboatGroup.rotation.z = rollZ;
+      this.sailboatGroup.rotation.x = pitchX;
+      if (this.boatPennant) {
+        this.boatPennant.rotation.y = Math.sin(time * 6.0) * 0.25;
+      }
+    }
+
+    // 3. Proximity checks
     this.checkProximity();
     this.updateScavengerProximity(delta, time);
 

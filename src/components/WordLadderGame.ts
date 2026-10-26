@@ -214,8 +214,8 @@ export class WordLadderGame {
             </div>
             <div class="text-right">
               <span class="text-[10px] text-sky-300 block uppercase font-bold">Steps: ${currentStepCount} / 6</span>
-              <span class="text-xs font-black ${currentStepCount <= 3 ? 'text-emerald-400' : currentStepCount === 4 ? 'text-amber-400' : currentStepCount === 5 ? 'text-orange-400' : 'text-sky-300'}">
-                ${currentStepCount < 3 ? 'Target: 3 steps = 10 pts' : currentStepCount === 3 ? '10 pts (3 steps)' : currentStepCount === 4 ? '6 pts (4 steps)' : currentStepCount === 5 ? '3 pts (5 steps)' : '1 pt (6 steps)'}
+              <span class="text-xs font-black ${currentStepCount <= 4 ? 'text-emerald-400' : currentStepCount === 5 ? 'text-amber-400' : 'text-orange-400'}">
+                ${currentStepCount <= 4 ? 'Target: 3-4 steps = 15 pts' : currentStepCount === 5 ? '10 pts (5 steps)' : '5 pts (6+ steps)'}
               </span>
             </div>
           </div>

@@ -10,7 +10,7 @@ export class QuizGame {
   private currentIndex: number = 0;
   private userAnswers: (number | null)[] = [];
   private score: number = 0;
-  private timeLeftSeconds: number = 60;
+  private timeLeftSeconds: number = 90;
   private timerInterval: number | null = null;
   private isGameOver: boolean = false;
   private isAnsweringLocked: boolean = false;
@@ -27,7 +27,7 @@ export class QuizGame {
     this.questions = getDailyQuizSet(today);
     this.userAnswers = Array(this.questions.length).fill(null);
 
-    // 60-second timer countdown
+    // 90-second timer countdown (+30s extension)
     this.timerInterval = window.setInterval(() => {
       if (this.timeLeftSeconds > 0) {
         this.timeLeftSeconds--;
@@ -112,7 +112,7 @@ export class QuizGame {
       }
     }
     if (barEl) {
-      const pct = (this.timeLeftSeconds / 60) * 100;
+      const pct = (this.timeLeftSeconds / 90) * 100;
       barEl.style.width = `${pct}%`;
       if (pct < 20) {
         barEl.className = 'h-2 rounded-full transition-all duration-1000 bg-rose-500';
@@ -147,11 +147,11 @@ export class QuizGame {
             
             <div class="text-4xl mb-2">🎉 ⛄ 🧠</div>
             <h3 class="text-2xl font-black text-amber-300">QUIZ COMPLETE!</h3>
-            <p class="text-sm font-semibold text-indigo-200 mt-1">You answered 10 teen questions in 60 seconds!</p>
+            <p class="text-sm font-semibold text-indigo-200 mt-1">You answered 15 teen questions in 90 seconds!</p>
 
             <div class="my-4 py-3 px-6 bg-white/10 rounded-2xl border border-indigo-400/40 inline-block shadow-inner">
               <span class="text-xs font-bold text-amber-200 uppercase tracking-widest block mb-1">Final Quiz Score</span>
-              <span class="text-4xl font-black text-emerald-400">${this.score} / 10 pts</span>
+              <span class="text-4xl font-black text-emerald-400">${this.score} / 15 pts</span>
             </div>
 
             <!-- Question Review Breakdown -->
@@ -203,7 +203,7 @@ export class QuizGame {
               <span class="text-3xl">🧠</span>
               <div>
                 <h2 class="font-extrabold text-lg sm:text-xl text-white leading-tight">Henry-Quiz</h2>
-                <p class="text-xs text-amber-300 font-semibold">Observatory • 60s Rapid Teen Trivia</p>
+                <p class="text-xs text-amber-300 font-semibold">Observatory • 90s Rapid Teen Trivia (15 Questions)</p>
               </div>
             </div>
             <button id="close-quiz-btn" class="w-8 h-8 rounded-full bg-indigo-800 hover:bg-indigo-700 text-indigo-200 font-bold flex items-center justify-center transition">✕</button>
@@ -222,7 +222,7 @@ export class QuizGame {
           </div>
 
           <div class="w-full bg-indigo-950 rounded-full h-2 mb-3.5 overflow-hidden border border-indigo-700">
-            <div id="quiz-timer-bar" class="h-2 rounded-full transition-all duration-1000 bg-gradient-to-r from-amber-400 to-emerald-400" style="width: ${(this.timeLeftSeconds / 60) * 100}%"></div>
+            <div id="quiz-timer-bar" class="h-2 rounded-full transition-all duration-1000 bg-gradient-to-r from-amber-400 to-emerald-400" style="width: ${(this.timeLeftSeconds / 90) * 100}%"></div>
           </div>
 
           <!-- Category Pill -->

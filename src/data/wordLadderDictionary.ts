@@ -404,16 +404,14 @@ export function isValidLadderWord(word: string): boolean {
 
 /**
  * Scoring based on steps used:
- * - 3 steps = 10 points
- * - 4 steps = 6 points
- * - 5 steps = 3 points
- * - 6 steps = 1 point
+ * - 3 or 4 steps = 15 points
+ * - 5 steps = 10 points
+ * - 6 or more steps = 5 points
  */
 export function calculateLadderScore(steps: number): number {
-  if (steps === 3) return 10;
-  if (steps === 4) return 6;
-  if (steps === 5) return 3;
-  if (steps === 6) return 1;
+  if (steps === 3 || steps === 4) return 15;
+  if (steps === 5) return 10;
+  if (steps >= 6) return 5;
   return 0;
 }
 

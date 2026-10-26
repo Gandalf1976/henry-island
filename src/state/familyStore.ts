@@ -576,18 +576,44 @@ class FamilyStore {
               const remoteDay = remoteP.history[dateKey];
               const localDay = localP.history[dateKey];
               if (!localDay) {
-                localP.history[dateKey] = remoteDay;
+                localP.history[dateKey] = { ...remoteDay };
                 changed = true;
               } else {
                 // Merge completed games
-                for (const g of remoteDay.completedGames || []) {
-                  if (!localDay.completedGames.includes(g)) {
-                    localDay.completedGames.push(g);
-                    changed = true;
-                  }
+                const mergedCompleted = Array.from(new Set([
+                  ...(localDay.completedGames || []),
+                  ...(remoteDay.completedGames || [])
+                ]));
+                if (mergedCompleted.length !== (localDay.completedGames || []).length) {
+                  localDay.completedGames = mergedCompleted;
+                  changed = true;
                 }
                 if ((remoteDay.totalDayScore || 0) > (localDay.totalDayScore || 0)) {
                   localDay.totalDayScore = remoteDay.totalDayScore;
+                  changed = true;
+                }
+                if (remoteDay.wordleScore !== undefined && (localDay.wordleScore === undefined || remoteDay.wordleScore > localDay.wordleScore)) {
+                  localDay.wordleScore = remoteDay.wordleScore;
+                  changed = true;
+                }
+                if (remoteDay.lakeScore !== undefined && (localDay.lakeScore === undefined || remoteDay.lakeScore > localDay.lakeScore)) {
+                  localDay.lakeScore = remoteDay.lakeScore;
+                  changed = true;
+                }
+                if (remoteDay.quizScore !== undefined && (localDay.quizScore === undefined || remoteDay.quizScore > localDay.quizScore)) {
+                  localDay.quizScore = remoteDay.quizScore;
+                  changed = true;
+                }
+                if (remoteDay.wordLadderScore !== undefined && (localDay.wordLadderScore === undefined || remoteDay.wordLadderScore > localDay.wordLadderScore)) {
+                  localDay.wordLadderScore = remoteDay.wordLadderScore;
+                  changed = true;
+                }
+                if (remoteDay.target24Score !== undefined && (localDay.target24Score === undefined || remoteDay.target24Score > localDay.target24Score)) {
+                  localDay.target24Score = remoteDay.target24Score;
+                  changed = true;
+                }
+                if (remoteDay.scavengerScore !== undefined && (localDay.scavengerScore === undefined || remoteDay.scavengerScore > localDay.scavengerScore)) {
+                  localDay.scavengerScore = remoteDay.scavengerScore;
                   changed = true;
                 }
               }

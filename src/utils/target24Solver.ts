@@ -124,13 +124,13 @@ export function solve24(numbers: number[]): string | null {
 }
 
 /**
- * Deterministically generates 4 numbers (1-10) for a given date key,
+ * Deterministically generates 4 numbers (1-10) for a given date key and round (0, 1, 2),
  * guaranteed to have a valid solution reaching 24.
  */
-export function getDailyTarget24(dateKey: string): Target24Solution {
+export function getDailyTarget24(dateKey: string, roundIndex: number = 0): Target24Solution {
   let attempt = 0;
   while (attempt < 100) {
-    const seed = getDateSeed(`${dateKey}-target24-${attempt}`);
+    const seed = getDateSeed(`${dateKey}-target24-rnd${roundIndex}-${attempt}`);
     
     // Generate 4 numbers between 1 and 10
     const n1 = ((seed * 1103515245 + 12345) >>> 16) % 10 + 1;
@@ -146,8 +146,13 @@ export function getDailyTarget24(dateKey: string): Target24Solution {
     attempt++;
   }
 
-  // Guaranteed fallback
-  return { numbers: [3, 8, 3, 1], sampleSolution: '(3 + ((8 - 1) * 3))' };
+  // Guaranteed fallbacks by round
+  const fallbacks: Target24Solution[] = [
+    { numbers: [3, 8, 3, 1], sampleSolution: '(3 + ((8 - 1) * 3))' },
+    { numbers: [4, 6, 2, 2], sampleSolution: '((4 * 6) * (2 / 2))' },
+    { numbers: [5, 5, 5, 1], sampleSolution: '((5 - (1 / 5)) * 5)' }
+  ];
+  return fallbacks[roundIndex % fallbacks.length];
 }
 
 /**

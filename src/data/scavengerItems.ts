@@ -51,6 +51,35 @@ const BELL_SPOTS: CandidateSpot[] = [
     x: -38,
     y: 2.2,
     z: 26
+  },
+  // Water Spots: Lake & Ocean
+  {
+    hint: 'Floating peacefully on the crystal waters of Henry Lake beside the pink water lilies — sail your boat out to collect it!',
+    locationName: 'Henry Lake Lilypad Waters',
+    x: 52,
+    y: 1.8,
+    z: 2
+  },
+  {
+    hint: 'Bobbing gently in the frosty northern ocean near the drifting icebergs — navigate your sailboat across the sea!',
+    locationName: 'Northern Arctic Ocean',
+    x: 0,
+    y: -0.4,
+    z: -105
+  },
+  {
+    hint: 'Riding the gentle ocean swells off the eastern coastline past Henry Lake — sail out to claim it!',
+    locationName: 'Eastern Ocean Waters',
+    x: 108,
+    y: -0.4,
+    z: 6
+  },
+  {
+    hint: 'Floating under the winter sun in the open ocean waters south of the island — reach it in your sailboat!',
+    locationName: 'Southern Open Sea',
+    x: 10,
+    y: -0.4,
+    z: 105
   }
 ];
 
@@ -96,6 +125,35 @@ const COOKIE_SPOTS: CandidateSpot[] = [
     x: -32,
     y: 2.2,
     z: 36
+  },
+  // Water Spots: Lake & Ocean
+  {
+    hint: 'Resting on a floating wooden tray in the northern cove of Henry Lake — sail your boat over to pick it up!',
+    locationName: 'Henry Lake North Cove',
+    x: 50,
+    y: 1.8,
+    z: -8
+  },
+  {
+    hint: 'Floating upon the crystal waves of the western sea beyond the Quiz Lodge cliffs — sail out to grab it!',
+    locationName: 'Western Sunset Ocean',
+    x: -108,
+    y: -0.4,
+    z: 5
+  },
+  {
+    hint: 'Bobbing on the sparkling ocean bay just off the Elves Workshop coast — reachable by sailboat!',
+    locationName: 'Northeast Ocean Waters',
+    x: 75,
+    y: -0.4,
+    z: -75
+  },
+  {
+    hint: 'Floating between icy blue icebergs in the southwest ocean — sail out to find it!',
+    locationName: 'Southwest Iceberg Strait',
+    x: -80,
+    y: -0.4,
+    z: 75
   }
 ];
 
@@ -141,6 +199,35 @@ const GIFT_SPOTS: CandidateSpot[] = [
     x: -40,
     y: 2.2,
     z: 34
+  },
+  // Water Spots: Lake & Ocean
+  {
+    hint: 'Floating in a waterproof holiday buoy on the calm water near Henry Lake’s far bank — steer your sailboat there!',
+    locationName: 'Henry Lake Far Bank Water',
+    x: 58,
+    y: 1.8,
+    z: 8
+  },
+  {
+    hint: 'Floating on the ocean waves offshore from Santa’s beach — navigate your sailboat to discover it!',
+    locationName: 'Southern Santa Bay Waters',
+    x: -20,
+    y: -0.4,
+    z: 105
+  },
+  {
+    hint: 'Adrift in the brisk ocean waters northwest of the island — sail across the sea to collect it!',
+    locationName: 'Northwest Ocean Swells',
+    x: -78,
+    y: -0.4,
+    z: -75
+  },
+  {
+    hint: 'Gleaming on the open sea far off the eastern coast — sail out into the ocean swells!',
+    locationName: 'East Ocean Horizon',
+    x: 115,
+    y: -0.4,
+    z: -20
   }
 ];
 
@@ -186,6 +273,35 @@ const SCARF_SPOTS: CandidateSpot[] = [
     x: -28,
     y: 2.2,
     z: 22
+  },
+  // Water Spots: Lake & Ocean
+  {
+    hint: 'Floating buoyantly on the clear water of Henry Lake — sail your boat out from the dock to reach it!',
+    locationName: 'Henry Lake South-Center Waters',
+    x: 46,
+    y: 1.8,
+    z: 12
+  },
+  {
+    hint: 'Tangled on a small icy floe drifting in the northern ocean — sail through the cold waters to find it!',
+    locationName: 'Northern Ocean Ice Floe',
+    x: 35,
+    y: -0.4,
+    z: -108
+  },
+  {
+    hint: 'Bobbing in the deep ocean waves southeast of Word Ladder ridge — take your sailboat to retrieve it!',
+    locationName: 'Southeast Coral Ocean',
+    x: 85,
+    y: -0.4,
+    z: 70
+  },
+  {
+    hint: 'Drifting peacefully in the open ocean waters west of Quiz Lodge — accessible only by sailboat!',
+    locationName: 'Western Ocean Sound',
+    x: -112,
+    y: -0.4,
+    z: -25
   }
 ];
 
@@ -231,11 +347,40 @@ const STAR_SPOTS: CandidateSpot[] = [
     x: -36,
     y: 2.2,
     z: 32
+  },
+  // Water Spots: Lake & Ocean
+  {
+    hint: 'Gleaming brilliantly on the water surface in the very center of Henry Lake — steer your sailboat right out to it!',
+    locationName: 'Henry Lake Center Waters',
+    x: 48,
+    y: 1.8,
+    z: 4
+  },
+  {
+    hint: 'Radiating golden light on the open ocean waves far to the north — sail your boat across the icy sea!',
+    locationName: 'Far Northern Arctic Sea',
+    x: -30,
+    y: -0.4,
+    z: -112
+  },
+  {
+    hint: 'Glowing in the warm ocean swells south of Henry Island — sail across the open water to capture it!',
+    locationName: 'Southern Reef Ocean',
+    x: 45,
+    y: -0.4,
+    z: 102
+  },
+  {
+    hint: 'Sparkling like a beacon out on the open sea to the northwest — journey out in your sailboat!',
+    locationName: 'West-Northwest High Ocean',
+    x: -95,
+    y: -0.4,
+    z: -60
   }
 ];
 
 /**
- * Returns the 5 daily scavenger hunt items with locations that change each day.
+ * Returns the 5 daily scavenger hunt items with locations that change each day across the whole map (island, lake, ocean).
  */
 export function getDailyScavengerItems(dateKey = getTodayDateKey()): ScavengerItemDef[] {
   const seedBell = getDateSeed(dateKey + '-scav-bell');

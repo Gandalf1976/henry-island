@@ -90,12 +90,23 @@ class LiveSyncManager {
         this.notifyStatus();
       };
 
-      this.eventSource.onmessage = (event) => {
+      this.eventSource.onmessage = async (event) => {
         try {
           const raw = JSON.parse(event.data);
-          if (raw && raw.message) {
-            // ntfy payload is in raw.message
-            this.handleIncomingPayload(raw.message);
+          if (raw) {
+            if (raw.attachment?.url) {
+              try {
+                const res = await fetch(raw.attachment.url);
+                if (res.ok) {
+                  const json = await res.json();
+                  this.handleIncomingPayload(json);
+                }
+              } catch (e) {
+                console.warn('Failed to load attachment from SSE:', e);
+              }
+            } else if (raw.message) {
+              this.handleIncomingPayload(raw.message);
+            }
           }
         } catch (e) {
           // Ignore parse errors on ping frames
@@ -125,7 +136,17 @@ class LiveSyncManager {
         if (!line.trim()) continue;
         try {
           const parsed = JSON.parse(line);
-          if (parsed.message) {
+          if (parsed.attachment?.url) {
+            try {
+              const fileRes = await fetch(parsed.attachment.url);
+              if (fileRes.ok) {
+                const json = await fileRes.json();
+                this.handleIncomingPayload(json, false);
+              }
+            } catch (e) {
+              console.warn('Failed to load initial attachment file:', e);
+            }
+          } else if (parsed.message) {
             this.handleIncomingPayload(parsed.message, false);
           }
         } catch (err) {
@@ -141,9 +162,19 @@ class LiveSyncManager {
     }
   }
 
-  private handleIncomingPayload(rawString: string, triggerSound = true): void {
+  private handleIncomingPayload(input: string | LiveSyncPayload, triggerSound = true): void {
     try {
-      const payload: LiveSyncPayload = JSON.parse(rawString);
+      let payload: LiveSyncPayload;
+      if (typeof input === 'string') {
+        if (input.startsWith('You received a file:')) {
+          // Skip placeholder text if attachment wasn't extracted
+          return;
+        }
+        payload = JSON.parse(input);
+      } else {
+        payload = input;
+      }
+
       if (!payload || payload.senderDeviceId === this.deviceId) {
         // Skip self-broadcasts
         return;
@@ -184,29 +215,65 @@ class LiveSyncManager {
     }, 1200);
   }
 
+  /**
+   * Constructs a compact player profile array containing recent day records
+   * so payload stays strictly below ntfy's 4,096-byte attachment threshold.
+   */
+  private getCompactPlayers(players: PlayerProfile[], maxDays = 7): PlayerProfile[] {
+    return players.map(p => {
+      const dates = Object.keys(p.history || {}).sort().reverse().slice(0, maxDays);
+      const compactHistory: typeof p.history = {};
+      for (const d of dates) {
+        compactHistory[d] = p.history[d];
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        avatarId: p.avatarId,
+        totalScore: p.totalScore,
+        streak: p.streak,
+        lastPlayedDate: p.lastPlayedDate,
+        history: compactHistory
+      };
+    });
+  }
+
   public async broadcastState(type: LiveSyncPayload['type'] = 'score_update', announcement?: string): Promise<void> {
     if (this.isPublishing) return;
 
-    const players = familyStore.getPlayers();
-    const messages = familyStore.getMessages();
+    const rawPlayers = familyStore.getPlayers();
+    const rawMessages = familyStore.getMessages();
     const activePlayer = familyStore.getActivePlayer();
 
     // Prevent echoing identical payload
-    const hash = JSON.stringify({ p: players, m: messages });
+    const hash = JSON.stringify({ p: rawPlayers, m: rawMessages });
     if (hash === this.lastSentHash && type !== 'new_message') {
       return;
     }
     this.lastSentHash = hash;
 
-    const payload: LiveSyncPayload = {
+    // Build compact payload: 7 days history, 10 recent messages
+    let compactPlayers = this.getCompactPlayers(rawPlayers, 7);
+    let compactMessages = rawMessages.slice(0, 10);
+
+    let payload: LiveSyncPayload = {
       type,
       senderDeviceId: this.deviceId,
       senderName: activePlayer.name,
       timestamp: Date.now(),
-      players,
-      messages,
+      players: compactPlayers,
+      messages: compactMessages,
       announcement
     };
+
+    let bodyStr = JSON.stringify(payload);
+
+    // If still large (>3500 chars), further compact to 3 days and 5 messages
+    if (bodyStr.length > 3500) {
+      payload.players = this.getCompactPlayers(rawPlayers, 3);
+      payload.messages = rawMessages.slice(0, 5);
+      bodyStr = JSON.stringify(payload);
+    }
 
     this.isPublishing = true;
     try {
@@ -217,7 +284,7 @@ class LiveSyncManager {
           'Title': `Henry Island: ${activePlayer.name}`,
           'Tags': 'island,christmas'
         },
-        body: JSON.stringify(payload)
+        body: bodyStr
       });
       this.lastSynced = new Date();
       this.notifyStatus();

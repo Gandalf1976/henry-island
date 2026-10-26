@@ -245,7 +245,7 @@ export class GuideModal {
               </h4>
               <span class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-900/60 border border-indigo-500 text-indigo-200 font-bold">Quiz Lodge (West)</span>
             </div>
-            <p class="text-xs text-slate-300 mb-1.5">10 rapid-fire multiple-choice questions on a 60-second timer.</p>
+            <p class="text-xs text-slate-300 mb-1.5">15 rapid-fire multiple-choice questions on a 90-second timer.</p>
             <p class="text-xs text-slate-300">Covers Geography, Science & Nature, Entertainment, Sport, General Knowledge, and Music!</p>
           </div>
 
@@ -258,26 +258,36 @@ export class GuideModal {
               </h4>
               <span class="text-[11px] px-2 py-0.5 rounded-full bg-rose-950/60 border border-rose-400 text-rose-200 font-bold">Math Chalet (SW)</span>
             </div>
-            <p class="text-xs text-slate-300 mb-1.5">Use 4 daily numbers (1–10) and arithmetic operators (+, −, ×, ÷, parentheses) to make exactly 24!</p>
+            <p class="text-xs text-slate-300 mb-1.5">Complete 3 Target 24 puzzles each day before the game closes! Use 4 numbers (1–10) and operations (+, −, ×, ÷, parentheses) to make exactly 24.</p>
             <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
-              <li>You have <strong>90 seconds</strong> to formulate your math expression.</li>
-              <li>Once you click <strong>Lock In Formula</strong>, your sum is locked in permanently for today (no retry).</li>
-              <li>Scores up to <strong>10 points</strong> for hitting 24 exactly!</li>
+              <li>You have <strong>90 seconds</strong> per puzzle to formulate your math expression.</li>
+              <li>Each correct sum to 24 scores <strong>4 points</strong>.</li>
+              <li>Solve all 3 puzzles correctly to earn a grand total of <strong>15 points</strong>!</li>
             </ul>
           </div>
 
-          <!-- Bonus: Scavenger Hunt -->
+          <!-- Bonus: Scavenger Hunt & Sailboat Water Exploration -->
           <div class="bg-white/5 border border-white/10 rounded-2xl p-3.5">
             <div class="flex items-center justify-between mb-1">
               <h4 class="font-black text-teal-300 text-sm flex items-center gap-1.5">
                 <span>🧭</span>
-                <span>Daily Scavenger Hunt</span>
+                <span>Daily Scavenger Hunt & ⛵ Sailboat Exploration</span>
               </h4>
-              <span class="text-[11px] px-2 py-0.5 rounded-full bg-teal-900/60 border border-teal-500 text-teal-200 font-bold">All Across Island</span>
+              <span class="text-[11px] px-2 py-0.5 rounded-full bg-teal-900/60 border border-teal-500 text-teal-200 font-bold">Entire Map & Waters</span>
             </div>
-            <p class="text-xs text-slate-300">
-              5 special holiday items are hidden on the island each day (🔔 Bell, 🍪 Cookie, 🎁 Gift, 🧣 Scarf, ⭐ Star). Walk near them to pick them up. Find all 5 for <strong>+2 bonus points</strong>!
+            <p class="text-xs text-slate-300 mb-2">
+              5 special holiday items are hidden across the entire map each day (🔔 Bell, 🍪 Cookie, 🎁 Gift, 🧣 Scarf, ⭐ Star). They can appear on land, floating in Henry Lake, or drifting out in the open ocean! Walk or sail near them to collect them. Find all 5 for <strong>+2 bonus points</strong>!
             </p>
+            <div class="bg-sky-950/40 border border-sky-500/30 rounded-xl p-2.5 text-xs text-sky-200 space-y-1">
+              <div class="font-bold text-sky-300 flex items-center gap-1">
+                <span>⛵</span>
+                <span>How to Sail:</span>
+              </div>
+              <ul class="list-disc list-inside space-y-0.5 text-[11px] text-slate-300">
+                <li><strong>Henry Lake:</strong> Walk into the water off the wooden dock by the Henry Lake sign to transform into a sailboat and cruise around the lake. Return to the dock sign to step back onto the island as your avatar.</li>
+                <li><strong>Open Ocean:</strong> Walk off any beach into the water to board a sailboat and explore the sea around the island. Steer back onto land at any point along the coast to return to your avatar!</li>
+              </ul>
+            </div>
           </div>
 
           <!-- Dad Reset -->
@@ -317,12 +327,11 @@ export class GuideModal {
               </div>
 
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
-                <strong class="text-amber-300 block mb-1">🪜 Henry Word Ladder (Up to 10 pts)</strong>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1 text-center font-bold text-[10px]">
-                  <span class="bg-amber-950 border border-amber-500/50 p-1 rounded">3 steps: 10 pts</span>
-                  <span class="bg-amber-950 border border-amber-500/50 p-1 rounded">4 steps: 6 pts</span>
-                  <span class="bg-amber-950 border border-amber-500/50 p-1 rounded">5 steps: 3 pts</span>
-                  <span class="bg-amber-950 border border-amber-500/50 p-1 rounded">6 steps: 1 pt</span>
+                <strong class="text-amber-300 block mb-1">🪜 Henry Word Ladder (Up to 15 pts)</strong>
+                <div class="grid grid-cols-3 gap-1 text-center font-bold text-[10px]">
+                  <span class="bg-amber-950 border border-amber-500/50 p-1 rounded">3–4 steps: 15 pts</span>
+                  <span class="bg-amber-950 border border-amber-500/50 p-1 rounded">5 steps: 10 pts</span>
+                  <span class="bg-amber-950 border border-amber-500/50 p-1 rounded">6+ steps: 5 pts</span>
                 </div>
               </div>
 
@@ -339,23 +348,21 @@ export class GuideModal {
               </div>
 
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
-                <strong class="text-indigo-300 block mb-1">🧠 Henry-Quiz (60s timer)</strong>
-                <p class="text-slate-300 text-[11px]"><strong>1 point</strong> per correct answer (10 questions = up to <strong>10 points</strong>).</p>
+                <strong class="text-indigo-300 block mb-1">🧠 Henry-Quiz (90s timer)</strong>
+                <p class="text-slate-300 text-[11px]"><strong>1 point</strong> per correct answer (15 questions = up to <strong>15 points</strong>).</p>
               </div>
 
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
-                <strong class="text-rose-300 block mb-1">🎯 Henry Target 24 (90s timer)</strong>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1 text-center font-bold text-[10px]">
-                  <span class="bg-rose-950 border border-rose-500/50 p-1 rounded">Exactly 24: 10 pts</span>
-                  <span class="bg-rose-950 border border-rose-500/50 p-1 rounded">Within 1 (23 or 25): 7 pts</span>
-                  <span class="bg-rose-950 border border-rose-500/50 p-1 rounded">Within 2 (22 or 26): 5 pts</span>
-                  <span class="bg-slate-900 border border-slate-700 p-1 rounded">Any other result: 1 pt</span>
+                <strong class="text-rose-300 block mb-1">🎯 Henry Target 24 (3 Puzzles per day)</strong>
+                <div class="grid grid-cols-2 gap-1 text-center font-bold text-[10px]">
+                  <span class="bg-rose-950 border border-rose-500/50 p-1 rounded">Each solved to 24: 4 pts</span>
+                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">All 3 solved: 15 pts total!</span>
                 </div>
               </div>
 
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <strong class="text-teal-300 block mb-1">🧭 Scavenger Hunt</strong>
-                <p class="text-slate-300 text-[11px]">Find all 5 hidden holiday items across the island = <strong>+2 bonus points</strong>!</p>
+                <p class="text-slate-300 text-[11px]">Find all 5 hidden holiday items across the whole map (island, lake & ocean) = <strong>+2 bonus points</strong>!</p>
               </div>
             </div>
           </div>

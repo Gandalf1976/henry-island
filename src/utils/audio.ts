@@ -239,11 +239,42 @@ class AudioManager {
     osc.start();
     osc.stop(ctx.currentTime + 0.12);
   }
+
+  public playWaterSplash(): void {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const bufferSize = Math.floor(ctx.sampleRate * 0.2);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.35));
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(850, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.2);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    noise.start();
+  }
 }
 
 export const soundAudio = new AudioManager();
 
-export type SoundType = 'click' | 'step' | 'jingle' | 'correct' | 'wrong' | 'victory' | 'closed' | 'closedSign' | 'snowStep' | 'buttonClick';
+export type SoundType = 'click' | 'step' | 'jingle' | 'correct' | 'wrong' | 'victory' | 'closed' | 'closedSign' | 'snowStep' | 'buttonClick' | 'waterSplash';
 
 export function playSound(type: SoundType): void {
   switch (type) {
@@ -254,6 +285,9 @@ export function playSound(type: SoundType): void {
     case 'step':
     case 'snowStep':
       soundAudio.playSnowStep();
+      break;
+    case 'waterSplash':
+      soundAudio.playWaterSplash();
       break;
     case 'jingle':
       soundAudio.playJingle();
