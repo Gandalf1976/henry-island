@@ -684,6 +684,49 @@ class FamilyStore {
     return true;
   }
 
+  /**
+   * Authoritative roster replacement (used for admin resets via liveSync
+   * 'full_sync'). Unlike mergeRemoteData (max-only), this replaces the
+   * local roster wholesale so scores can also be lowered/zeroed.
+   */
+  public applyAuthoritativePlayers(remotePlayers: PlayerProfile[]): boolean {
+    if (!Array.isArray(remotePlayers) || remotePlayers.length === 0) return false;
+
+    const clean: PlayerProfile[] = remotePlayers.map(p => ({
+      id: p.id,
+      name: p.name || 'Islander',
+      avatarId: AVATAR_ROSTER.some(a => a.id === p.avatarId) ? p.avatarId : AVATAR_ROSTER[0].id,
+      totalScore: p.totalScore || 0,
+      streak: p.streak || 0,
+      lastPlayedDate: p.lastPlayedDate || '',
+      history: p.history || {}
+    }));
+
+    // Never lose the device's identity: re-add it (zeroed) if the
+    // authoritative roster doesn't include it.
+    const lockedId = this.getLockedPlayerId();
+    for (const keepId of [this.activePlayerId, lockedId]) {
+      if (!keepId) continue;
+      if (!clean.some(p => p.id === keepId)) {
+        const local = this.players.find(p => p.id === keepId);
+        clean.push({
+          id: keepId,
+          name: local?.name || 'Islander',
+          avatarId: local?.avatarId || AVATAR_ROSTER[0].id,
+          totalScore: 0,
+          streak: 0,
+          lastPlayedDate: '',
+          history: {}
+        });
+      }
+    }
+
+    this.players = clean;
+    this.save();
+    this.listeners.forEach(fn => fn());
+    return true;
+  }
+
   // --- Export / Import JSON Fallback ---
 
   public exportDataJson(): string {

@@ -21,7 +21,12 @@ import { playSound } from './audio';
  * topic) are still understood and merged.
  */
 
-const SYNC_TOPIC = 'henry_island_gandalf1976_v3';
+/**
+ * Bump this topic suffix when the family needs a hard state reset: the new
+ * topic starts with an empty cache, so stale score broadcasts from the old
+ * topic can never re-inflate a reset roster. Rotate v4 -> v5 -> ... as needed.
+ */
+const SYNC_TOPIC = 'henry_island_gandalf1976_v4';
 const NTFY_BASE = 'https://ntfy.sh/' + SYNC_TOPIC;
 
 // ntfy.sh stores messages larger than 4096 bytes as expiring attachments.
@@ -428,7 +433,14 @@ class LiveSyncManager {
       const players = payload.players ?? expandCompactPlayers(payload.p);
       const messages = payload.messages ?? expandCompactMessages(payload.m);
 
-      const merged = familyStore.mergeRemoteData(players, messages);
+      // full_sync is AUTHORITATIVE: replace the local roster wholesale
+      // (used for admin resets — a max-merge would never lower scores).
+      let merged: boolean;
+      if (payload.type === 'full_sync' && Array.isArray(players)) {
+        merged = familyStore.applyAuthoritativePlayers(players);
+      } else {
+        merged = familyStore.mergeRemoteData(players, messages);
+      }
 
       if (merged) {
         this.lastSynced = new Date();
@@ -446,6 +458,9 @@ class LiveSyncManager {
           } else if (payload.type === 'game_reset') {
             playSound('snowStep');
             this.showToastNotification(payload.announcement || '🔄 Puzzles reset by Dad to play again!');
+          } else if (payload.type === 'full_sync') {
+            playSound('victory');
+            this.showToastNotification(payload.announcement || '🔄 Family scores were reset!');
           }
         }
       }
