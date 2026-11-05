@@ -258,10 +258,10 @@ export class GuideModal {
               </h4>
               <span class="text-[11px] px-2 py-0.5 rounded-full bg-rose-950/60 border border-rose-400 text-rose-200 font-bold">Math Chalet (SW)</span>
             </div>
-            <p class="text-xs text-slate-300 mb-1.5">Complete 3 Target 24 puzzles each day before the game closes! Use 4 numbers (1–10) and operations (+, −, ×, ÷, parentheses) to make exactly 24.</p>
+            <p class="text-xs text-slate-300 mb-1.5">Complete 3 Target puzzles each day before the game closes! You get 5 numbers (1–10) and a random target (3–99). Use operations (+, −, ×, ÷, parentheses) to make exactly the target number.</p>
             <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
               <li>You have <strong>90 seconds</strong> per puzzle to formulate your math expression.</li>
-              <li>Each correct sum to 24 scores <strong>4 points</strong>.</li>
+              <li>Each exact hit on the target number scores <strong>4 points</strong>.</li>
               <li>Solve all 3 puzzles correctly to earn a grand total of <strong>15 points</strong>!</li>
             </ul>
           </div>
@@ -355,7 +355,7 @@ export class GuideModal {
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <strong class="text-rose-300 block mb-1">🎯 Henry Target 24 (3 Puzzles per day)</strong>
                 <div class="grid grid-cols-2 gap-1 text-center font-bold text-[10px]">
-                  <span class="bg-rose-950 border border-rose-500/50 p-1 rounded">Each solved to 24: 4 pts</span>
+                  <span class="bg-rose-950 border border-rose-500/50 p-1 rounded">Each target hit: 4 pts</span>
                   <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">All 3 solved: 15 pts total!</span>
                 </div>
               </div>

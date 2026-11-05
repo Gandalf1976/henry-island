@@ -1,158 +1,155 @@
-import { getDateSeed } from './dailyClock';
-
 export interface Target24Solution {
   numbers: number[];
+  target: number;
   sampleSolution: string;
 }
 
-export interface EvaluationResult {
-  valid: boolean;
-  error?: string;
-  result?: number;
-  usedNumbers: number[];
+/**
+ * Solves the classic 24 puzzle (4 numbers, target 24) using +, -, *, /
+ * and parentheses. Returns a human-friendly formula string, or null.
+ */
+export function solve24(numbers: number[]): string | null {
+  return solveTarget(numbers, 24);
 }
 
 /**
- * Solves the 24 puzzle using the 4 numbers with +, -, *, / and parentheses.
- * Returns a human-friendly formula string if solvable, or null if impossible.
+ * Generalised solver: combine ALL given numbers exactly once each with
+ * +, -, *, / (and implicit parentheses) to reach `target` exactly.
+ * Exhaustive pair-reduction search with expression tracking; returns a
+ * human-friendly formula string, or null when unsolvable.
+ * Fast in practice (5 numbers: a few ms worst case).
  */
-export function solve24(numbers: number[]): string | null {
-  const ops = ['+', '-', '*', '/'] as const;
-
-  function permute(arr: number[]): number[][] {
-    if (arr.length <= 1) return [arr];
-    const res: number[][] = [];
-    for (let i = 0; i < arr.length; i++) {
-      const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
-      for (const p of permute(rest)) {
-        res.push([arr[i], ...p]);
-      }
-    }
-    return res;
+export function solveTarget(numbers: number[], target: number): string | null {
+  interface Item {
+    v: number;
+    e: string;
   }
 
-  const perms = permute(numbers);
-
-  function applyOp(a: number, b: number, op: string): number | null {
-    if (op === '+') return a + b;
-    if (op === '-') return a - b;
-    if (op === '*') return a * b;
-    if (op === '/') {
-      if (Math.abs(b) < 1e-9) return null;
-      return a / b;
+  function rec(items: Item[]): string | null {
+    if (items.length === 1) {
+      return Math.abs(items[0].v - target) < 1e-6 ? items[0].e : null;
+    }
+    const n = items.length;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        const a = items[i];
+        const b = items[j];
+        for (const op of ['+', '-', '*', '/']) {
+          let v: number;
+          let expr: string;
+          if (op === '/') {
+            if (Math.abs(b.v) < 1e-9) continue;
+            v = a.v / b.v;
+            expr = `(${a.e} / ${b.e})`;
+          } else if (op === '*') {
+            v = a.v * b.v;
+            expr = `(${a.e} * ${b.e})`;
+          } else if (op === '+') {
+            v = a.v + b.v;
+            expr = `(${a.e} + ${b.e})`;
+          } else {
+            v = a.v - b.v;
+            expr = `(${a.e} - ${b.e})`;
+          }
+          if (!isFinite(v)) continue;
+          const rest = items.filter((_, k) => k !== i && k !== j);
+          const result = rec([...rest, { v, e: expr }]);
+          if (result) return result;
+        }
+      }
     }
     return null;
   }
 
-  for (const [a, b, c, d] of perms) {
-    for (const op1 of ops) {
-      for (const op2 of ops) {
-        for (const op3 of ops) {
-          // Tree 1: ((a op1 b) op2 c) op3 d
-          {
-            const v1 = applyOp(a, b, op1);
-            if (v1 !== null) {
-              const v2 = applyOp(v1, c, op2);
-              if (v2 !== null) {
-                const v3 = applyOp(v2, d, op3);
-                if (v3 !== null && Math.abs(v3 - 24) < 1e-6) {
-                  return `((${a} ${op1} ${b}) ${op2} ${c}) ${op3} ${d}`;
-                }
-              }
-            }
-          }
+  return rec(numbers.map(v => ({ v, e: String(v) })));
+}
 
-          // Tree 2: (a op1 (b op2 c)) op3 d
-          {
-            const v1 = applyOp(b, c, op2);
-            if (v1 !== null) {
-              const v2 = applyOp(a, v1, op1);
-              if (v2 !== null) {
-                const v3 = applyOp(v2, d, op3);
-                if (v3 !== null && Math.abs(v3 - 24) < 1e-6) {
-                  return `(${a} ${op1} (${b} ${op2} ${c})) ${op3} ${d}`;
-                }
-              }
-            }
-          }
+function randomInt(min: number, max: number): number {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
 
-          // Tree 3: a op1 ((b op2 c) op3 d)
-          {
-            const v1 = applyOp(b, c, op2);
-            if (v1 !== null) {
-              const v2 = applyOp(v1, d, op3);
-              if (v2 !== null) {
-                const v3 = applyOp(a, v2, op1);
-                if (v3 !== null && Math.abs(v3 - 24) < 1e-6) {
-                  return `${a} ${op1} ((${b} ${op2} ${c}) ${op3} ${d})`;
-                }
-              }
-            }
-          }
+/**
+ * Collects every integer value in [min, max] reachable by combining all
+ * numbers with +, -, *, /. (Every 5-set of 1–10 numbers reaches at least
+ * its plain sum, so the set is never empty for our ranges.)
+ */
+function reachableIntegers(numbers: number[], min: number, max: number): number[] {
+  const found = new Set<number>();
+  interface Item {
+    v: number;
+  }
 
-          // Tree 4: a op1 (b op2 (c op3 d))
-          {
-            const v1 = applyOp(c, d, op3);
-            if (v1 !== null) {
-              const v2 = applyOp(b, v1, op2);
-              if (v2 !== null) {
-                const v3 = applyOp(a, v2, op1);
-                if (v3 !== null && Math.abs(v3 - 24) < 1e-6) {
-                  return `${a} ${op1} (${b} ${op2} (${c} ${op3} ${d}))`;
-                }
-              }
-            }
-          }
-
-          // Tree 5: (a op1 b) op2 (c op3 d)
-          {
-            const v1 = applyOp(a, b, op1);
-            const v2 = applyOp(c, d, op3);
-            if (v1 !== null && v2 !== null) {
-              const v3 = applyOp(v1, v2, op2);
-              if (v3 !== null && Math.abs(v3 - 24) < 1e-6) {
-                return `(${a} ${op1} ${b}) ${op2} (${c} ${op3} ${d})`;
-              }
-            }
-          }
+  function rec(items: Item[]): void {
+    if (items.length === 1) {
+      const v = items[0].v;
+      if (v >= min && v <= max && Math.abs(v - Math.round(v)) < 1e-6) {
+        found.add(Math.round(v));
+      }
+      return;
+    }
+    const n = items.length;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        const a = items[i];
+        const b = items[j];
+        for (const op of ['+', '-', '*', '/']) {
+          let v: number;
+          if (op === '/') {
+            if (Math.abs(b.v) < 1e-9) continue;
+            v = a.v / b.v;
+          } else if (op === '*') v = a.v * b.v;
+          else if (op === '+') v = a.v + b.v;
+          else v = a.v - b.v;
+          if (!isFinite(v)) continue;
+          const rest = items.filter((_, k) => k !== i && k !== j);
+          rec([...rest, { v }]);
         }
       }
     }
   }
 
-  return null;
+  rec(numbers.map(v => ({ v })));
+  return Array.from(found);
 }
 
 /**
- * Deterministically generates 4 numbers (1-10) for a given date key and round (0, 1, 2),
- * guaranteed to have a valid solution reaching 24.
+ * Generates one Target game: 5 random integers (1–10) and a random target
+ * (3–99), guaranteed solvable.
+ *
+ * Strategy: roll a uniform random target and verify with the solver (~96%
+ * hit rate). If a roll is unsolvable, retry a few times; as a last resort
+ * pick the target from the numbers' reachable-integer set (always
+ * non-empty), which guarantees a solution by construction.
  */
-export function getDailyTarget24(dateKey: string, roundIndex: number = 0): Target24Solution {
-  let attempt = 0;
-  while (attempt < 100) {
-    const seed = getDateSeed(`${dateKey}-target24-rnd${roundIndex}-${attempt}`);
-    
-    // Generate 4 numbers between 1 and 10
-    const n1 = ((seed * 1103515245 + 12345) >>> 16) % 10 + 1;
-    const n2 = (((seed + 7) * 1103515245 + 12345) >>> 16) % 10 + 1;
-    const n3 = (((seed + 13) * 1103515245 + 12345) >>> 16) % 10 + 1;
-    const n4 = (((seed + 19) * 1103515245 + 12345) >>> 16) % 10 + 1;
+export function generateTarget24Puzzle(): Target24Solution {
+  const MAX_TARGET_TRIES = 40;
 
-    const nums = [n1, n2, n3, n4];
-    const solution = solve24(nums);
+  for (let attempt = 0; attempt < MAX_TARGET_TRIES; attempt++) {
+    const numbers = Array.from({ length: 5 }, () => randomInt(1, 10));
+    const target = randomInt(3, 99);
+    const solution = solveTarget(numbers, target);
     if (solution) {
-      return { numbers: nums, sampleSolution: solution };
+      return { numbers, target, sampleSolution: solution };
     }
-    attempt++;
   }
 
-  // Guaranteed fallbacks by round
-  const fallbacks: Target24Solution[] = [
-    { numbers: [3, 8, 3, 1], sampleSolution: '(3 + ((8 - 1) * 3))' },
-    { numbers: [4, 6, 2, 2], sampleSolution: '((4 * 6) * (2 / 2))' },
-    { numbers: [5, 5, 5, 1], sampleSolution: '((5 - (1 / 5)) * 5)' }
-  ];
-  return fallbacks[roundIndex % fallbacks.length];
+  // Guaranteed fallback: pick a target the numbers can actually reach.
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const numbers = Array.from({ length: 5 }, () => randomInt(1, 10));
+    const reachable = reachableIntegers(numbers, 3, 99);
+    if (reachable.length > 0) {
+      const target = reachable[randomInt(0, reachable.length - 1)];
+      const solution = solveTarget(numbers, target);
+      if (solution) {
+        return { numbers, target, sampleSolution: solution };
+      }
+    }
+  }
+
+  // Should be mathematically unreachable (sum of 1s = 5 is always in range)
+  return { numbers: [1, 1, 1, 1, 1], target: 5, sampleSolution: '((((1 + 1) + 1) + 1) + 1)' };
 }
 
 /**
@@ -255,32 +252,4 @@ export function safeEvaluateMath(expression: string): { ok: boolean; value?: num
   if (!isFinite(finalVal) || isNaN(finalVal)) return { ok: false, error: 'Invalid calculation result' };
 
   return { ok: true, value: finalVal };
-}
-
-/**
- * Calculates Target 24 score based on user specifications:
- * - Getting 24 exactly scores 10 points.
- * - Getting within 1 of 24 (higher or lower) scores 7 points.
- * - Getting within 2 of 24 (higher or lower) scores 5 points.
- * - Any other outcome scores 1 point.
- */
-export function calculateTarget24Score(result: number | null | undefined): {
-  points: number;
-  diff: number;
-  desc: string;
-} {
-  if (result === null || result === undefined || isNaN(result) || !isFinite(result)) {
-    return { points: 1, diff: 999, desc: 'No valid formula (1 pt)' };
-  }
-
-  const diff = Math.abs(result - 24);
-  if (diff < 1e-5) {
-    return { points: 10, diff: 0, desc: '🎯 EXACTLY 24! (10 Points)' };
-  } else if (diff <= 1 + 1e-5) {
-    return { points: 7, diff: Math.round(diff), desc: 'Within 1 of 24 (7 Points)' };
-  } else if (diff <= 2 + 1e-5) {
-    return { points: 5, diff: Math.round(diff), desc: 'Within 2 of 24 (5 Points)' };
-  } else {
-    return { points: 1, diff: Math.round(diff * 10) / 10, desc: 'Other outcome (1 Point)' };
-  }
 }

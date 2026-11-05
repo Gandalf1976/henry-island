@@ -1,8 +1,7 @@
 import confetti from 'canvas-confetti';
 import { familyStore } from '../state/familyStore';
 import { soundAudio } from '../utils/audio';
-import { getTodayDateKey } from '../utils/dailyClock';
-import { getDailyTarget24, safeEvaluateMath } from '../utils/target24Solver';
+import { generateTarget24Puzzle, safeEvaluateMath } from '../utils/target24Solver';
 
 interface NumberTile {
   id: number;
@@ -13,6 +12,7 @@ interface NumberTile {
 interface RoundRecord {
   round: number;
   numbers: number[];
+  target: number;
   formula: string;
   value: number | null;
   sampleSolution: string;
@@ -25,7 +25,8 @@ export class Target24Game {
   private maxRounds: number = 3;
   private roundResults: RoundRecord[] = [];
 
-  private targetNumbers: number[] = [3, 8, 3, 1];
+  private targetNumbers: number[] = [3, 8, 3, 1, 1];
+  private targetValue: number = 24;
   private sampleSolution: string = '';
   private numberTiles: NumberTile[] = [];
   private formulaTokens: { id: string; text: string; tileId?: number }[] = [];
@@ -57,9 +58,9 @@ export class Target24Game {
       this.timerInterval = null;
     }
 
-    const today = getTodayDateKey();
-    const puzzle = getDailyTarget24(today, roundNum - 1);
+    const puzzle = generateTarget24Puzzle();
     this.targetNumbers = puzzle.numbers;
+    this.targetValue = puzzle.target;
     this.sampleSolution = puzzle.sampleSolution;
 
     this.numberTiles = this.targetNumbers.map((val, idx) => ({
@@ -189,11 +190,12 @@ export class Target24Game {
     const evalRes = safeEvaluateMath(formulaStr);
     const calculatedVal = evalRes.ok && evalRes.value !== undefined ? evalRes.value : null;
 
-    const solved = calculatedVal !== null && Math.abs(calculatedVal - 24) < 1e-5;
+    const solved = calculatedVal !== null && Math.abs(calculatedVal - this.targetValue) < 1e-5;
 
     const roundRecord: RoundRecord = {
       round: this.currentRound,
       numbers: [...this.targetNumbers],
+      target: this.targetValue,
       formula: formulaStr,
       value: calculatedVal,
       sampleSolution: this.sampleSolution,
@@ -290,10 +292,10 @@ export class Target24Game {
       const evalRes = safeEvaluateMath(formulaStr);
       if (evalRes.ok && evalRes.value !== undefined) {
         const rounded = Math.round(evalRes.value * 100) / 100;
-        const diff = Math.abs(rounded - 24);
+        const diff = Math.abs(rounded - this.targetValue);
         previewEl.innerHTML = `Current Total = <span class="text-lg font-black ${
           diff < 0.01 ? 'text-amber-300 animate-pulse' : diff <= 2 ? 'text-emerald-300' : 'text-sky-200'
-        }">${rounded}</span> ${diff < 0.01 ? '🎯 TARGET HIT (24)!' : ''}`;
+        }">${rounded}</span> ${diff < 0.01 ? `🎯 TARGET HIT (${this.targetValue})!` : ''}`;
       } else {
         previewEl.textContent = 'Building sum...';
       }
@@ -340,7 +342,7 @@ export class Target24Game {
               <span class="text-3xl">🎯</span>
               <div>
                 <h3 class="text-lg sm:text-xl font-black text-amber-300">Henry Target 24</h3>
-                <p class="text-[11px] sm:text-xs text-sky-200">Solve 3 puzzles to 24 • 4 pts each (15 pts if all 3 correct!)</p>
+                <p class="text-[11px] sm:text-xs text-sky-200">3 puzzles • hit the random target (3–99) • 4 pts each (15 pts if all 3 correct!)</p>
               </div>
             </div>
             <button id="close-t24-btn" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white font-bold flex items-center justify-center transition">✕</button>
@@ -395,6 +397,7 @@ export class Target24Game {
                     <div>
                       <span class="font-bold text-amber-300">Puzzle ${r.round}:</span>
                       <span class="text-sky-200 font-mono ml-1">[${r.numbers.join(', ')}]</span>
+                      <span class="text-amber-300 font-bold ml-1">→ ${r.target}</span>
                       <div class="text-[11px] text-slate-400 font-mono">${r.formula || '(No formula)'} = ${r.value !== null ? r.value : '—'}</div>
                     </div>
                     <div class="text-right">
@@ -419,7 +422,7 @@ export class Target24Game {
                       🌟 PERFECT 3/3 SWEEP! All 3 correct earns the 15-point jackpot! 🎉
                      </div>`
                   : `<div class="p-2 bg-indigo-950/70 border border-indigo-500/50 rounded-xl text-[11px] text-sky-200 my-2">
-                      💡 Tip: Every correct sum to 24 gives 4 pts. Solve all 3 tomorrow for 15 pts!
+                      💡 Tip: Land exactly on the target number for 4 pts each. Solve all 3 tomorrow for 15 pts!
                      </div>`
               }
 
@@ -447,13 +450,13 @@ export class Target24Game {
                 <div class="flex justify-between items-center text-sky-200">
                   <span>Calculated Result:</span>
                   <span class="font-mono font-bold ${currentRecord.solved ? 'text-emerald-300' : 'text-rose-300'}">
-                    ${currentRecord.value !== null ? currentRecord.value : 'Invalid'}
+                    ${currentRecord.value !== null ? currentRecord.value : 'Invalid'} <span class="text-slate-400">(target ${currentRecord.target})</span>
                   </span>
                 </div>
                 <div class="border-t border-white/10 pt-1.5 flex justify-between items-center text-sm font-black">
                   <span class="text-white">Puzzle ${this.currentRound} Result:</span>
                   <span class="${currentRecord.solved ? 'text-emerald-400' : 'text-rose-400'} font-black">
-                    ${currentRecord.solved ? '🎯 Solved to 24! (+4 pts)' : 'Not 24 (0 pts)'}
+                    ${currentRecord.solved ? `🎯 Solved to ${currentRecord.target}! (+4 pts)` : `Not ${currentRecord.target} (0 pts)`}
                   </span>
                 </div>
               </div>
@@ -461,7 +464,7 @@ export class Target24Game {
               ${
                 !currentRecord.solved
                   ? `<div class="p-2 bg-indigo-950/70 border border-indigo-500/50 rounded-xl text-[11px] text-sky-200 my-2">
-                      💡 A possible 24 solution was: <span class="font-mono font-bold text-amber-300">${currentRecord.sampleSolution}</span>
+                      💡 A possible solution to ${currentRecord.target} was: <span class="font-mono font-bold text-amber-300">${currentRecord.sampleSolution}</span>
                      </div>`
                   : ''
               }
@@ -480,8 +483,13 @@ export class Target24Game {
                 <span class="text-xs font-bold text-sky-200">⏳ Puzzle ${this.currentRound} Timer:</span>
                 <span id="t24-timer" class="font-black text-lg text-amber-300">1:30</span>
               </div>
-              <div class="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400 text-amber-300 text-[10px] font-bold">
-                Solve to 24 = 4 pts
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400 text-emerald-300 text-[11px] font-black">
+                  🎯 Target: ${this.targetValue}
+                </span>
+                <div class="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400 text-amber-300 text-[10px] font-bold">
+                  Hit it = 4 pts
+                </div>
               </div>
             </div>
 
@@ -498,7 +506,7 @@ export class Target24Game {
 
             <!-- 4 Number Tiles Grid -->
             <div class="w-full mb-3">
-              <div class="text-[11px] font-bold text-amber-200 mb-1 text-center">Your 4 Numbers for Puzzle ${this.currentRound} (Click to use):</div>
+              <div class="text-[11px] font-bold text-amber-200 mb-1 text-center">Your 5 Numbers for Puzzle ${this.currentRound} (Click to use):</div>
               <div id="t24-number-tiles" class="flex justify-center gap-2 sm:gap-3"></div>
             </div>
 
