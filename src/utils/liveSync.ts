@@ -435,8 +435,34 @@ class LiveSyncManager {
 
       // full_sync is AUTHORITATIVE: replace the local roster wholesale
       // (used for admin resets — a max-merge would never lower scores).
+      // It is a one-shot COMMAND: ntfy re-delivers cached messages on every
+      // poll, so dedupe by sender+timestamp to avoid re-wiping scores that
+      // the family earns after the reset.
       let merged: boolean;
-      if (payload.type === 'full_sync' && Array.isArray(players)) {
+      if (payload.type === 'full_sync') {
+        if (!Array.isArray(players) || players.length === 0) {
+          return;
+        }
+        const fp = `${payload.senderDeviceId}|${payload.timestamp}`;
+        const APPLIED_KEY = 'henry_island_applied_full_syncs';
+        let applied: string[] = [];
+        try {
+          applied = JSON.parse(localStorage.getItem(APPLIED_KEY) || '[]');
+        } catch {
+          applied = [];
+        }
+        if (!applied.includes(fp)) {
+          if (applied.length > 10) applied = applied.slice(-10);
+          applied.push(fp);
+          try {
+            localStorage.setItem(APPLIED_KEY, JSON.stringify(applied));
+          } catch {
+            // storage full — proceed with the reset anyway
+          }
+        } else {
+          // Already applied this reset — ignore the redelivery.
+          return;
+        }
         merged = familyStore.applyAuthoritativePlayers(players);
       } else {
         merged = familyStore.mergeRemoteData(players, messages);

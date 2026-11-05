@@ -623,6 +623,20 @@ class FamilyStore {
                   localDay.scavengerScore = remoteDay.scavengerScore;
                   changed = true;
                 }
+                // Union scavenger found-items & completed flag so discoveries
+                // made on one device appear on all of them.
+                if (remoteDay.scavengerFoundIds && remoteDay.scavengerFoundIds.length > 0) {
+                  if (!localDay.scavengerFoundIds) localDay.scavengerFoundIds = [];
+                  const mergedFound = Array.from(new Set([...localDay.scavengerFoundIds, ...remoteDay.scavengerFoundIds]));
+                  if (mergedFound.length !== localDay.scavengerFoundIds.length) {
+                    localDay.scavengerFoundIds = mergedFound;
+                    changed = true;
+                  }
+                }
+                if (remoteDay.scavengerCompleted && !localDay.scavengerCompleted) {
+                  localDay.scavengerCompleted = true;
+                  changed = true;
+                }
               }
             }
           }
@@ -664,23 +678,48 @@ class FamilyStore {
    * subsequent broadcast payload. Players who have ever played, are the
    * active player, or are the device's locked identity are always kept.
    */
+  /**
+   * Remove duplicate roster entries (the same display name added on two
+   * devices creates two IDs — e.g. two "Lee" rows that pollute every
+   * broadcast payload).
+   *
+   * IMPORTANT: only exact-name DUPLICATES are pruned. Zero-activity
+   * singletons are never removed — after an admin score reset every real
+   * player is legitimately at zero, and pruning them would gut the family
+   * roster (and trigger a re-broadcast storm across devices).
+   */
   public pruneGhostPlayers(): boolean {
-    const lockedId = this.getLockedPlayerId();
+    const byName = new Map<string, PlayerProfile[]>();
+    for (const p of this.players) {
+      const key = p.name.trim().toLowerCase();
+      byName.set(key, [...(byName.get(key) || []), p]);
+    }
 
-    const isGhost = (p: PlayerProfile): boolean => {
-      if (p.id === this.activePlayerId || p.id === lockedId) return false;
-      if ((p.totalScore || 0) > 0 || (p.streak || 0) > 0) return false;
-      const everPlayed = Object.values(p.history || {}).some(
-        (d) => (d.completedGames?.length ?? 0) > 0 || (d.totalDayScore || 0) > 0
-      );
-      return !everPlayed;
+    const dataAmount = (p: PlayerProfile): number => {
+      let total = (p.totalScore || 0) + (p.streak || 0);
+      for (const d of Object.values(p.history || {})) {
+        total += d.totalDayScore || 0;
+      }
+      return total;
     };
 
-    const kept = this.players.filter(p => !isGhost(p));
-    if (kept.length === 0) return false; // Never prune the last player
-    if (kept.length === this.players.length) return false;
+    const remove = new Set<string>();
+    for (const group of byName.values()) {
+      if (group.length < 2) continue;
+      const sorted = [...group].sort((a, b) => {
+        const diff = dataAmount(b) - dataAmount(a);
+        if (diff !== 0) return diff; // keep the one with more data
+        if (a.id === this.activePlayerId) return -1;
+        if (b.id === this.activePlayerId) return 1;
+        return a.id.localeCompare(b.id); // stable: keep the older ID
+      });
+      for (const p of sorted.slice(1)) {
+        remove.add(p.id);
+      }
+    }
 
-    this.players = kept;
+    if (remove.size === 0) return false;
+    this.players = this.players.filter((p) => !remove.has(p.id));
     return true;
   }
 
