@@ -108,6 +108,9 @@ class FamilyStore {
       console.warn('Failed to load bulletin messages:', e);
     }
 
+    // Prune ghost players accumulated by duplicate cross-device adds
+    this.pruneGhostPlayers();
+
     // Default sample holiday welcome message if empty
     if (this.messages.length === 0) {
       this.messages = [
@@ -568,6 +571,10 @@ class FamilyStore {
             localP.streak = remoteP.streak;
             changed = true;
           }
+          if (remoteP.lastPlayedDate && remoteP.lastPlayedDate > (localP.lastPlayedDate || '')) {
+            localP.lastPlayedDate = remoteP.lastPlayedDate;
+            changed = true;
+          }
 
           // Deep merge history
           if (remoteP.history) {
@@ -637,12 +644,44 @@ class FamilyStore {
       }
     }
 
+    // 3. Prune ghost players (see pruneGhostPlayers)
+    if (this.pruneGhostPlayers()) {
+      changed = true;
+    }
+
     if (changed) {
       this.save();
       this.listeners.forEach(fn => fn());
     }
 
     return changed;
+  }
+
+  /**
+   * Remove "ghost" players that never had any activity and are not the
+   * active/locked identity — these accumulate as duplicates when two devices
+   * add the same person (e.g. two "Lee" entries) and then pollute every
+   * subsequent broadcast payload. Players who have ever played, are the
+   * active player, or are the device's locked identity are always kept.
+   */
+  public pruneGhostPlayers(): boolean {
+    const lockedId = this.getLockedPlayerId();
+
+    const isGhost = (p: PlayerProfile): boolean => {
+      if (p.id === this.activePlayerId || p.id === lockedId) return false;
+      if ((p.totalScore || 0) > 0 || (p.streak || 0) > 0) return false;
+      const everPlayed = Object.values(p.history || {}).some(
+        (d) => (d.completedGames?.length ?? 0) > 0 || (d.totalDayScore || 0) > 0
+      );
+      return !everPlayed;
+    };
+
+    const kept = this.players.filter(p => !isGhost(p));
+    if (kept.length === 0) return false; // Never prune the last player
+    if (kept.length === this.players.length) return false;
+
+    this.players = kept;
+    return true;
   }
 
   // --- Export / Import JSON Fallback ---
