@@ -71,6 +71,9 @@ interface CompactDay {
   s5?: number;
   sf?: number; // scavenger found items bitfield (today/yesterday only, to keep size down)
   sc?: 0 | 1;
+  rt?: number; // boat race best time (ms)
+  rl?: number; // locked race points
+  lk?: 0 | 1; // race ranking locked
 }
 
 interface CompactPlayer {
@@ -168,6 +171,11 @@ function buildCompactPayload(
         dayRec.sf = scavengerBitfield(day.scavengerFoundIds);
         if (day.scavengerCompleted) dayRec.sc = 1;
       }
+      // Boat race best time & lock state (kept for every synced day so the
+      // live daily ranking — and locked past results — reconstruct fully).
+      if (day.raceTimeMs !== undefined) dayRec.rt = day.raceTimeMs;
+      if (day.raceLockedPoints !== undefined) dayRec.rl = day.raceLockedPoints;
+      if (day.raceLocked) dayRec.lk = 1;
       h[d] = dayRec;
     }
     return {
@@ -228,7 +236,10 @@ function expandCompactPlayers(compact?: CompactPlayer[]): PlayerProfile[] | unde
         ...(day.T !== undefined ? { target24Score: day.T } : {}),
         ...(day.s5 !== undefined ? { scavengerScore: day.s5 } : {}),
         ...(foundIds ? { scavengerFoundIds: foundIds } : {}),
-        ...(day.sc === 1 ? { scavengerCompleted: true } : {})
+        ...(day.sc === 1 ? { scavengerCompleted: true } : {}),
+        ...(day.rt !== undefined ? { raceTimeMs: day.rt } : {}),
+        ...(day.rl !== undefined ? { raceLockedPoints: day.rl } : {}),
+        ...(day.lk === 1 ? { raceLocked: true } : {})
       };
     }
     return {

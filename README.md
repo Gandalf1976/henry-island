@@ -72,7 +72,17 @@ Game	Location	Time Limit	Rules & Scoring
 • +5 bonus points for finding the full 9-letter word!
 🧠 Henry-Quiz	Quiz Lodge	60s	10 rapid-fire multiple-choice questions for teens across Geography, Science, Entertainment, Sport, General Knowledge, and Music.
 • 1 pt per correct answer.
+🪜 Henry Word Ladder	Word Ladder Lodge	90s	Step from the start word to the target word, changing one letter at a time.
+• Shorter ladders score more (see the in-game scoring hint).
+🎯 Henry Target 24	Math Chalet (SW)	90s per puzzle × 3	Each round deals 5 random numbers (1–10) and a random target (3–99). Build a formula with +, −, ×, ÷ and parentheses that lands exactly on the target — every round is guaranteed solvable.
+• 4 pts per exact hit (15 pts if all 3 solved!)
+🏁 Boat Race (repeatable!)	Open Ocean	timed	Sail around the island through 10 numbered gates (two boat-widths wide) scattered randomly each day — same course for the whole family. Time is measured to the millisecond; your best time of the day counts.
+• Fastest of the day = 15 pts • 2nd 12 • 3rd 10 • 4th 8 • 5th 5 • 6th 3.
+• Live re-ranking as the family sets faster times; points lock at 23:59:59. Identical times share the rank and the points.
+🧭 Daily Scavenger Hunt	Whole map	all day	5 holiday items hidden at random locations (re-scattered each visit) across land, Henry Lake and the ocean. A snowy ice cliff ring marks the edge of the map.
+• Find all 5 for +2 bonus points.
 
 IMPORTANT
 
-Each game can only be played once per day per player. Once completed, a wooden CLOSED sign appears on the entrance until midnight reset.
+The daily games (Wordle, Lake, Quiz, Word Ladder, Target 24) can only be played once per day per player. Once completed, a wooden CLOSED sign appears on the entrance until midnight reset.
+The **Boat Race is repeatable** — sail it as many times as you like; your best time of the day is what counts on the race board.

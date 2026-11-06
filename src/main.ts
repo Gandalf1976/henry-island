@@ -7,6 +7,7 @@ import { ManagePlayersModal } from './components/ManagePlayersModal';
 import { MessageBoardModal } from './components/MessageBoardModal';
 import { PreviousDayWinnersModal } from './components/PreviousDayWinnersModal';
 import { QuizGame } from './components/QuizGame';
+import { RaceResultsModal } from './components/RaceResultsModal';
 import { ScavengerHuntModal } from './components/ScavengerHuntModal';
 import { SnowmanPodiumModal } from './components/SnowmanPodium';
 import { Target24Game } from './components/Target24Game';
@@ -17,7 +18,7 @@ import { AVATAR_ROSTER } from './data/avatars';
 import { familyStore } from './state/familyStore';
 import { GameType } from './types';
 import { soundAudio } from './utils/audio';
-import { getTodayDateKey } from './utils/dailyClock';
+import { getTodayDateKey, getYesterdayDateKey } from './utils/dailyClock';
 import { liveSyncManager } from './utils/liveSync';
 import { IslandWorld3D } from './world/islandWorld3D';
 
@@ -25,6 +26,7 @@ class App {
   private world: IslandWorld3D;
   private modalHost: HTMLElement;
   private activeGameInstance: WordleGame | LakeGame | QuizGame | WordLadderGame | Target24Game | null = null;
+  private lastDayKey: string;
 
   constructor() {
     const viewport = document.getElementById('island-viewport');
@@ -39,8 +41,20 @@ class App {
       onTriggerGame: (game) => this.triggerGame(game),
       onOpenPodium: () => this.openPodiumModal(),
       onOpenMessageBoard: () => this.openMessageBoardModal(),
-      onOpenAvatar: () => this.openAvatarModal()
+      onOpenAvatar: () => this.openAvatarModal(),
+      onRaceComplete: (timeMs) => this.onRaceComplete(timeMs)
     });
+
+    // Midnight rollover: finalise & lock the finished day's race ranking
+    // (points then become permanent instead of live-re-ranking).
+    this.lastDayKey = getTodayDateKey();
+    window.setInterval(() => {
+      const now = getTodayDateKey();
+      if (now !== this.lastDayKey) {
+        familyStore.lockRaceScoresForDate(getYesterdayDateKey(now));
+        this.lastDayKey = now;
+      }
+    }, 30000);
 
     // 3. UI Setup & Header Badges
     this.setupUI();
@@ -196,6 +210,29 @@ class App {
       soundAudio.playButtonClick();
       this.world.teleportTo('hearth');
     });
+
+    // Boat Race Dock Button
+    document.getElementById('travel-race')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      this.world.teleportTo('race');
+    });
+  }
+
+  private onRaceComplete(timeMs: number): void {
+    const activePlayer = familyStore.getActivePlayer();
+    const today = getTodayDateKey();
+    const rec = activePlayer.history?.[today];
+    const isPersonalBest = rec?.raceTimeMs === undefined || timeMs < rec.raceTimeMs;
+    if (isPersonalBest) {
+      familyStore.recordRaceTime(activePlayer.id, timeMs);
+    }
+    new RaceResultsModal(
+      this.modalHost,
+      timeMs,
+      isPersonalBest,
+      () => this.closeModal(),
+      () => this.world.teleportTo('race')
+    );
   }
 
   private updateHeaderBadge(): void {

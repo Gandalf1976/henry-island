@@ -8,6 +8,13 @@ const DEVICE_LOCK_KEY = 'henry_island_device_player_id';
 const MESSAGES_KEY = 'henry_island_bulletin_messages_v1';
 const LAST_READ_MSG_KEY = 'henry_island_last_read_msg_ts';
 
+export interface RaceLeaderboardEntry {
+  rank: number;
+  player: PlayerProfile;
+  timeMs: number;
+  points: number;
+}
+
 export interface LeaderboardEntry {
   rank: number;
   player: PlayerProfile;
@@ -235,7 +242,7 @@ class FamilyStore {
 
   public getPlayerScoreStats(player: PlayerProfile, dateKey = getTodayDateKey()): PlayerScoreStats {
     const todayRecord = player.history?.[dateKey];
-    const todayScore = todayRecord ? (todayRecord.totalDayScore || 0) : 0;
+    const todayScore = (todayRecord ? (todayRecord.totalDayScore || 0) : 0) + this.getPlayerRacePoints(player.id, dateKey);
 
     let daysPlayed = 0;
     let cumulativeScore = 0;
@@ -243,9 +250,10 @@ class FamilyStore {
     const dates = Object.keys(player.history || {});
     for (const d of dates) {
       const rec = player.history[d];
-      if (rec && ((rec.completedGames && rec.completedGames.length > 0) || (rec.totalDayScore || 0) > 0)) {
+      const racePts = this.getPlayerRacePoints(player.id, d);
+      if (rec && ((rec.completedGames && rec.completedGames.length > 0) || (rec.totalDayScore || 0) > 0 || rec.raceTimeMs !== undefined)) {
         daysPlayed += 1;
-        cumulativeScore += rec.totalDayScore || 0;
+        cumulativeScore += (rec.totalDayScore || 0) + racePts;
       }
     }
 
@@ -446,6 +454,102 @@ class FamilyStore {
     return true;
   }
 
+  // --- Boat Race (daily, repeatable; best time counts) ---
+
+  /** Points table by race rank: 1st=15, 2nd=12, 3rd=10, 4th=8, 5th=5, 6th=3. */
+  static readonly RACE_POINTS_TABLE: number[] = [15, 12, 10, 8, 5, 3];
+
+  /** All players who completed the race on a given date, fastest first. */
+  public getRacersForDate(dateKey: string): { player: PlayerProfile; timeMs: number }[] {
+    const racers = this.players
+      .map(p => ({ player: p, timeMs: p.history?.[dateKey]?.raceTimeMs }))
+      .filter((r): r is { player: PlayerProfile; timeMs: number } => r.timeMs !== undefined && r.timeMs > 0);
+    racers.sort((a, b) => a.timeMs - b.timeMs);
+    return racers;
+  }
+
+  /**
+   * Daily race leaderboard. Identical times share the same rank (and points);
+   * the next distinct time takes its true position. Points follow
+   * RACE_POINTS_TABLE by rank; anything beyond 6th scores nothing.
+   */
+  public getRaceLeaderboard(dateKey: string = getTodayDateKey()): RaceLeaderboardEntry[] {
+    const racers = this.getRacersForDate(dateKey);
+    const ranks: number[] = new Array(racers.length);
+    for (let i = 0; i < racers.length; i++) {
+      if (i > 0 && racers[i].timeMs === racers[i - 1].timeMs) {
+        ranks[i] = ranks[i - 1]; // tied: same rank, same points
+      } else {
+        ranks[i] = i + 1;
+      }
+    }
+    return racers.map((r, i) => ({
+      rank: ranks[i],
+      player: r.player,
+      timeMs: r.timeMs,
+      points: FamilyStore.RACE_POINTS_TABLE[ranks[i] - 1] ?? 0
+    }));
+  }
+
+  /**
+   * Records a completed race. Only an IMPROVED best time is stored (lower
+   * is better); the merge is min-only so personal bests never regress.
+   */
+  public recordRaceTime(playerId: string, timeMs: number, dateKey: string = getTodayDateKey()): boolean {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player || timeMs <= 0) return false;
+    if (!player.history) player.history = {};
+    if (!player.history[dateKey]) {
+      player.history[dateKey] = { completedGames: [], totalDayScore: 0 };
+    }
+    const dayRecord = player.history[dateKey];
+    if (dayRecord.raceTimeMs !== undefined && dayRecord.raceTimeMs <= timeMs) {
+      return false; // not a personal best
+    }
+    dayRecord.raceTimeMs = timeMs;
+    this.notify();
+    return true;
+  }
+
+  /**
+   * Live race points for a player on a date.
+   * - Today: derived from the current daily leaderboard (re-ranks live as
+   *   family members set faster times).
+   * - Past days: the locked points written when the day finalised.
+   */
+  public getPlayerRacePoints(playerId: string, dateKey: string = getTodayDateKey()): number {
+    const player = this.players.find(p => p.id === playerId);
+    if (!player) return 0;
+    const rec = player.history?.[dateKey];
+    if (!rec || rec.raceTimeMs === undefined) return 0;
+    if (rec.raceLocked) return rec.raceLockedPoints ?? 0;
+    if (dateKey !== getTodayDateKey()) return rec.raceLockedPoints ?? 0;
+    const entry = this.getRaceLeaderboard(dateKey).find(e => e.player.id === playerId);
+    return entry?.points ?? 0;
+  }
+
+  /**
+   * Midnight finalisation: lock each player's race points for a finished day
+   * (idempotent — skips days already locked). Points then become part of the
+   * stored record and stop re-ranking.
+   */
+  public lockRaceScoresForDate(dateKey: string): boolean {
+    const racers = this.getRacersForDate(dateKey);
+    if (racers.length === 0) return false;
+    const board = this.getRaceLeaderboard(dateKey);
+    let changed = false;
+    for (const racer of racers) {
+      const rec = racer.player.history?.[dateKey];
+      if (!rec || rec.raceLocked) continue;
+      const entry = board.find(e => e.player.id === racer.player.id);
+      rec.raceLockedPoints = entry?.points ?? 0;
+      rec.raceLocked = true;
+      changed = true;
+    }
+    if (changed) this.notify();
+    return changed;
+  }
+
   // --- Scavenger Hunt Tracking ---
 
   public getScavengerFoundIds(playerId?: string, dateKey = getTodayDateKey()): string[] {
@@ -635,6 +739,20 @@ class FamilyStore {
                 }
                 if (remoteDay.scavengerCompleted && !localDay.scavengerCompleted) {
                   localDay.scavengerCompleted = true;
+                  changed = true;
+                }
+                // Boat race: personal best is a MIN merge (times only improve);
+                // locked points/flag are final once written.
+                if (remoteDay.raceTimeMs !== undefined && (localDay.raceTimeMs === undefined || remoteDay.raceTimeMs < localDay.raceTimeMs)) {
+                  localDay.raceTimeMs = remoteDay.raceTimeMs;
+                  changed = true;
+                }
+                if (remoteDay.raceLockedPoints !== undefined && (localDay.raceLockedPoints === undefined || remoteDay.raceLockedPoints > localDay.raceLockedPoints)) {
+                  localDay.raceLockedPoints = remoteDay.raceLockedPoints;
+                  changed = true;
+                }
+                if (remoteDay.raceLocked && !localDay.raceLocked) {
+                  localDay.raceLocked = true;
                   changed = true;
                 }
               }

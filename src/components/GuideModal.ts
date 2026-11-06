@@ -277,7 +277,7 @@ export class GuideModal {
               <span class="text-[11px] px-2 py-0.5 rounded-full bg-teal-900/60 border border-teal-500 text-teal-200 font-bold">Entire Map & Waters</span>
             </div>
             <p class="text-xs text-slate-300 mb-2">
-              5 special holiday items are hidden across the entire map each day (🔔 Bell, 🍪 Cookie, 🎁 Gift, 🧣 Scarf, ⭐ Star). They can appear on land, floating in Henry Lake, or drifting out in the open ocean! Walk or sail near them to collect them. Find all 5 for <strong>+2 bonus points</strong>!
+              5 special holiday items are hidden across the entire map (🔔 Bell, 🍪 Cookie, 🎁 Gift, 🧣 Scarf, ⭐ Star) at random locations — the layout is re-scattered every time you open the island! They can appear on land, floating in Henry Lake, or drifting out in the open ocean (mind the snowy ice boundary — that's the edge of the map). Walk or sail near them to collect them. Find all 5 for <strong>+2 bonus points</strong>!
             </p>
             <div class="bg-sky-950/40 border border-sky-500/30 rounded-xl p-2.5 text-xs text-sky-200 space-y-1">
               <div class="font-bold text-sky-300 flex items-center gap-1">
@@ -364,6 +364,11 @@ export class GuideModal {
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <strong class="text-teal-300 block mb-1">🧭 Scavenger Hunt</strong>
                 <p class="text-slate-300 text-[11px]">Find all 5 hidden holiday items across the whole map (island, lake & ocean) = <strong>+2 bonus points</strong>!</p>
+              </div>
+
+              <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
+                <strong class="text-sky-300 block mb-1">🏁 Boat Race (repeatable)</strong>
+                <p class="text-slate-300 text-[11px]">Race around the island through 10 numbered gates. Fastest time of the day: <strong>15 pts</strong> • 2nd 12 • 3rd 10 • 4th 8 • 5th 5 • 6th 3. Live re-ranking — points lock at midnight!</p>
               </div>
             </div>
           </div>

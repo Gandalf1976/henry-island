@@ -26,6 +26,12 @@ export interface PlayerProfile {
       scavengerScore?: number;
       scavengerFoundIds?: string[];
       scavengerCompleted?: boolean;
+      /** Best boat-race time of the day in milliseconds (lower is better). */
+      raceTimeMs?: number;
+      /** Points from the final daily race ranking, written when the day locks at midnight. */
+      raceLockedPoints?: number;
+      /** True once the day's race ranking has been finalised. */
+      raceLocked?: boolean;
       completedGames: GameType[];
       totalDayScore: number;
     };

@@ -6,12 +6,15 @@ import { familyStore, LeaderboardEntry } from '../state/familyStore';
 import { GameType } from '../types';
 import { playSound, soundAudio } from '../utils/audio';
 import { getTodayDateKey } from '../utils/dailyClock';
+import { formatRaceTime, getDailyRaceCourse, RACE_GATE_WIDTH, RACE_START_WIDTH, RaceCourse } from '../utils/raceCourse';
 
 export interface World3DCallbacks {
   onTriggerGame: (gameType: GameType) => void;
   onOpenPodium: () => void;
   onOpenMessageBoard: () => void;
   onOpenAvatar: () => void;
+  /** Boat race finished (millisecond time). */
+  onRaceComplete?: (timeMs: number) => void;
 }
 
 export class IslandWorld3D {
@@ -71,6 +74,19 @@ export class IslandWorld3D {
     baseY: number;
     color: number;
   }[] = [];
+
+  // Boat Race (daily course, repeatable)
+  private raceCourse: RaceCourse = { startLine: { x: 0, z: 118, nx: -1, nz: 0, dx: 0, dz: 1 }, gates: [] };
+  private raceGateMeshes: { number: number; passed: boolean; numberPanelMat: THREE.MeshBasicMaterial }[] = [];
+  private raceStartGroup!: THREE.Group;
+  private raceNextGateBeam!: THREE.Mesh;
+  private raceActive = false;
+  private raceStartMs = 0;
+  private nextGateIdx = 0;
+  private raceHudEl: HTMLElement | null = null;
+  private raceTimerEl: HTMLElement | null = null;
+  private raceGateEl: HTMLElement | null = null;
+  private prevPos = new THREE.Vector3();
 
   // Interactive targets
   private interactivePortals: {
@@ -142,6 +158,10 @@ export class IslandWorld3D {
     this.buildExplorationAreas();
     this.buildDecorations();
     this.buildScavengerItems();
+    this.buildOceanBoundary();
+    this.raceCourse = getDailyRaceCourse();
+    this.buildRaceCourse();
+    this.buildRaceHud();
     this.buildPenguins();
     this.buildSnowfall();
 
@@ -1456,6 +1476,278 @@ export class IslandWorld3D {
     this.scavengerMeshes.forEach(m => {
       m.group.visible = !foundIds.includes(m.id);
     });
+  }
+
+  /**
+   * Visible ocean boundary: a ring of snowy ice cliffs at the outer
+   * navigation limit, so the family can always see the edge of the
+   * search area. The boat is hard-clamped just inside it (r=237).
+   */
+  private buildOceanBoundary(): void {
+    const R = 240;
+    const SEGMENTS = 30;
+    const segLen = ((Math.PI * 2 * R) / SEGMENTS) * 1.15; // slight overlap so no gaps
+    const iceMat = new THREE.MeshStandardMaterial({ color: 0xdff1ff, roughness: 0.35 });
+    const snowMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 });
+
+    for (let i = 0; i < SEGMENTS; i++) {
+      const angle = (i / SEGMENTS) * Math.PI * 2;
+      const h = 9 + Math.sin(i * 2.7) * 3 + Math.random() * 3; // organic 6..15
+      const cliff = new THREE.Mesh(new THREE.BoxGeometry(segLen, h, 14), iceMat);
+      cliff.position.set(Math.cos(angle) * R, h / 2 - 3.2, Math.sin(angle) * R);
+      cliff.rotation.y = -(angle + Math.PI / 2); // lay along the circle
+      cliff.castShadow = true;
+      this.scene.add(cliff);
+
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(segLen * 1.02, 1.1, 15.5), snowMat);
+      cap.position.set(Math.cos(angle) * R, h - 2.7, Math.sin(angle) * R);
+      cap.rotation.y = -(angle + Math.PI / 2);
+      this.scene.add(cap);
+    }
+  }
+
+  /**
+   * Builds the daily boat race: a START line off the eastern beach plus
+   * 10 numbered gates scattered around the ocean ring (see raceCourse).
+   * Gate opening = two boat widths; the next gate glows with a light beam.
+   */
+  private buildRaceCourse(): void {
+    const makeNumberPanel = (label: string, big: boolean): THREE.Mesh => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = big ? '#34d399' : '#fbbf24';
+      ctx.fillRect(0, 0, 128, 128);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(4, 4, 120, 120);
+      ctx.fillStyle = '#0f172a';
+      ctx.font = `bold ${big ? 64 : 84}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, 64, 70);
+      const tex = new THREE.CanvasTexture(canvas);
+      const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(big ? 3.4 : 2.6, big ? 3.4 : 2.6), mat);
+      return panel;
+    };
+
+    const buildGateStructure = (openingWidth: number): THREE.Group => {
+      const group = new THREE.Group();
+      const postMat = new THREE.MeshStandardMaterial({ color: 0x7dd3fc, roughness: 0.3 });
+      const snowCapMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 });
+      for (const side of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 9, 10), postMat);
+        post.position.set(side * (openingWidth / 2 + 0.7), 2.5, 0);
+        post.castShadow = true;
+        group.add(post);
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.4, 10), snowCapMat);
+        cap.position.set(side * (openingWidth / 2 + 0.7), 7.7, 0);
+        group.add(cap);
+      }
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(openingWidth + 2.2, 1.1, 1.3), postMat);
+      beam.position.y = 6.6;
+      group.add(beam);
+      return group;
+    };
+
+    // Gate structure local axes: x = along the opening, z = radial (crossing axis).
+    const orientToIsland = (group: THREE.Group, x: number, z: number): void => {
+      group.position.set(x, -1, z);
+      group.rotation.y = Math.PI / 2 - Math.atan2(z, x);
+    };
+
+    // Start line (wider, green 'GO' panel)
+    const s = this.raceCourse.startLine;
+    this.raceStartGroup = buildGateStructure(RACE_START_WIDTH);
+    orientToIsland(this.raceStartGroup, s.x, s.z);
+    const startPanel = makeNumberPanel('GO', true);
+    const startPole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, 4.5, 8),
+      new THREE.MeshStandardMaterial({ color: 0x94a3b8 })
+    );
+    startPole.position.y = 9.2;
+    startPanel.position.y = 11.8;
+    this.raceStartGroup.add(startPole);
+    this.raceStartGroup.add(startPanel);
+    this.scene.add(this.raceStartGroup);
+
+    // Numbered gates (built in visiting order)
+    this.raceGateMeshes = [];
+    for (const g of this.raceCourse.gates) {
+      const group = buildGateStructure(RACE_GATE_WIDTH);
+      orientToIsland(group, g.x, g.z);
+      const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, 4, 8),
+        new THREE.MeshStandardMaterial({ color: 0x94a3b8 })
+      );
+      pole.position.y = 8.8;
+      const panel = makeNumberPanel(String(g.number), false);
+      panel.position.y = 11.2;
+      group.add(pole);
+      group.add(panel);
+      this.scene.add(group);
+      this.raceGateMeshes.push({
+        number: g.number,
+        passed: false,
+        numberPanelMat: panel.material as THREE.MeshBasicMaterial
+      });
+    }
+
+    // Glowing beam marking the next gate to hit
+    this.raceNextGateBeam = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.8, 1.8, 45, 12, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0xfde047,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      })
+    );
+    this.raceNextGateBeam.visible = false;
+    this.scene.add(this.raceNextGateBeam);
+  }
+
+  /** HUD strip shown while a race is running. */
+  private buildRaceHud(): void {
+    if (this.raceHudEl) {
+      this.raceHudEl.remove();
+      this.raceHudEl = null;
+    }
+    const el = document.createElement('div');
+    el.id = 'henry-race-hud';
+    el.className =
+      'fixed top-20 left-1/2 -translate-x-1/2 z-40 hidden items-center gap-3 bg-slate-900/90 border-2 border-sky-400 rounded-2xl px-4 py-2 shadow-2xl backdrop-blur-md text-white';
+    el.innerHTML = `
+      <span class="text-xs font-bold text-sky-200">⏱ <span id="henry-race-timer">0:00.000</span></span>
+      <span class="text-xs font-black text-amber-300" id="henry-race-gate">Gate 1/10</span>
+    `;
+    document.body.appendChild(el);
+    this.raceHudEl = el;
+    this.raceTimerEl = el.querySelector('#henry-race-timer') as HTMLElement;
+    this.raceGateEl = el.querySelector('#henry-race-gate') as HTMLElement;
+  }
+
+  /**
+   * Line-crossing test: did the segment prev->curr cross the line through
+   * (cx,cz) with normal (nx,nz) within +/- halfWidth along (dx,dz)?
+   */
+  private lineCross(
+    prevX: number, prevZ: number, currX: number, currZ: number,
+    cx: number, cz: number, nx: number, nz: number, dx: number, dz: number, halfWidth: number
+  ): boolean {
+    const sP = (prevX - cx) * nx + (prevZ - cz) * nz;
+    const sC = (currX - cx) * nx + (currZ - cz) * nz;
+    if (sP === 0 || sP * sC > 0) return false; // no crossing
+    const t = sP / (sP - sC);
+    const hx = prevX + (currX - prevX) * t;
+    const hz = prevZ + (currZ - prevZ) * t;
+    return Math.abs((hx - cx) * dx + (hz - cz) * dz) <= halfWidth;
+  }
+
+  /** Per-frame race state machine (start line, in-order gates, finish). */
+  private updateRace(): void {
+    const s = this.raceCourse.startLine;
+    const px = this.prevPos.x;
+    const pz = this.prevPos.z;
+    const cx = this.playerPos.x;
+    const cz = this.playerPos.z;
+
+    if (this.playerMode !== 'sailboat_ocean') {
+      if (this.raceActive) {
+        this.abortRace('⚓ Race aborted — you left the open ocean! Sail back out and cross the start line to retry.');
+      }
+      return;
+    }
+
+    if (!this.raceActive) {
+      if (this.lineCross(px, pz, cx, cz, s.x, s.z, s.nx, s.nz, s.dx, s.dz, RACE_START_WIDTH / 2)) {
+        this.raceActive = true;
+        this.raceStartMs = Date.now();
+        this.nextGateIdx = 0;
+        this.raceGateMeshes.forEach(m => {
+          m.passed = false;
+          m.numberPanelMat.color.set(0xffffff);
+        });
+        soundAudio.playJingle();
+        this.showCollectToast('🏁 RACE START! Hit all 10 gates in order (watch the glowing beam).');
+        if (this.raceHudEl) {
+          this.raceHudEl.classList.remove('hidden');
+          this.raceHudEl.classList.add('flex');
+        }
+        this.updateNextGateBeam();
+      }
+      return;
+    }
+
+    const g = this.raceCourse.gates[this.nextGateIdx];
+    if (g && this.lineCross(px, pz, cx, cz, g.x, g.z, g.nx, g.nz, g.dx, g.dz, RACE_GATE_WIDTH / 2)) {
+      const m = this.raceGateMeshes[this.nextGateIdx];
+      if (m) {
+        m.passed = true;
+        m.numberPanelMat.color.set(0x34d399); // green tint = gate cleared
+      }
+      this.nextGateIdx++;
+      soundAudio.playButtonClick();
+
+      if (this.nextGateIdx >= this.raceCourse.gates.length) {
+        this.finishRace(Date.now() - this.raceStartMs);
+      } else {
+        const next = this.raceCourse.gates[this.nextGateIdx];
+        this.showCollectToast(`Gate ${g.number} ✓ — next: Gate ${next.number}`);
+        this.updateNextGateBeam();
+      }
+    }
+
+    if (this.raceTimerEl) {
+      this.raceTimerEl.textContent = formatRaceTime(Date.now() - this.raceStartMs);
+    }
+    if (this.raceGateEl && g) {
+      this.raceGateEl.textContent = `Gate ${Math.min(this.nextGateIdx + 1, 10)}/10`;
+    }
+  }
+
+  private updateNextGateBeam(): void {
+    if (!this.raceNextGateBeam) return;
+    const g = this.raceCourse.gates[this.nextGateIdx];
+    if (g) {
+      this.raceNextGateBeam.visible = true;
+      this.raceNextGateBeam.position.set(g.x, 18, g.z);
+    } else {
+      this.raceNextGateBeam.visible = false;
+    }
+  }
+
+  private abortRace(message: string): void {
+    this.raceActive = false;
+    this.nextGateIdx = 0;
+    this.raceNextGateBeam.visible = false;
+    if (this.raceHudEl) {
+      this.raceHudEl.classList.add('hidden');
+      this.raceHudEl.classList.remove('flex');
+    }
+    this.showCollectToast(message);
+  }
+
+  private finishRace(timeMs: number): void {
+    this.raceActive = false;
+    this.nextGateIdx = 0;
+    this.raceNextGateBeam.visible = false;
+    if (this.raceHudEl) {
+      this.raceHudEl.classList.add('hidden');
+      this.raceHudEl.classList.remove('flex');
+    }
+    // Reset gate visuals for the next run
+    this.raceGateMeshes.forEach(m => {
+      m.passed = false;
+      m.numberPanelMat.color.set(0xffffff);
+    });
+    soundAudio.playVictory();
+    confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+    this.showCollectToast(`🏁 FINISH! ${formatRaceTime(timeMs)}`);
+    this.callbacks.onRaceComplete?.(timeMs);
   }
 
   private createChild(coatColor: number, hatColor: number, scarfColor: number): {
@@ -2896,7 +3188,21 @@ export class IslandWorld3D {
     this.joystickVector.y = y;
   }
 
-  public teleportTo(id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa'): void {
+  public teleportTo(id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa' | 'race'): void {
+    if (id === 'race') {
+      // Teleport the boat just short of the race start line (island side).
+      this.setPlayerMode('sailboat_ocean');
+      const s = this.raceCourse.startLine;
+      this.playerPos.x = s.x + s.nx * 8;
+      this.playerPos.z = s.z + s.nz * 8;
+      this.playerPos.y = -0.4;
+      this.prevPos.copy(this.playerPos);
+      this.sailboatGroup.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
+      this.sailboatGroup.rotation.y = Math.atan2(s.nx, s.nz);
+      this.showCollectToast('🏁 Teleported to the Race Start — cross the line to begin!');
+      return;
+    }
+
     const portal = this.interactivePortals.find(p => p.id === id);
     if (portal) {
       this.setPlayerMode('avatar');
@@ -3043,11 +3349,11 @@ export class IslandWorld3D {
       }
       // 3. SAILBOAT ON OPEN OCEAN MODE
       else if (this.playerMode === 'sailboat_ocean') {
-        // Outer ocean limit
+        // Outer ocean limit — just inside the visible snowy ice boundary
         const distFromCenter = Math.hypot(this.playerPos.x, this.playerPos.z);
-        if (distFromCenter > 240) {
-          this.playerPos.x = (this.playerPos.x / distFromCenter) * 240;
-          this.playerPos.z = (this.playerPos.z / distFromCenter) * 240;
+        if (distFromCenter > 237) {
+          this.playerPos.x = (this.playerPos.x / distFromCenter) * 237;
+          this.playerPos.z = (this.playerPos.z / distFromCenter) * 237;
         }
 
         // Re-enter island at ANY point along the coastline!
@@ -3208,6 +3514,7 @@ export class IslandWorld3D {
     const time = this.clock.getElapsedTime();
 
     // 1. Player Movement & Camera
+    this.prevPos.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
     this.updateMovement(delta);
 
     // 2. Sailboat Bobbing on Water
@@ -3226,6 +3533,9 @@ export class IslandWorld3D {
     // 3. Proximity checks
     this.checkProximity();
     this.updateScavengerProximity(delta, time);
+
+    // 3b. Boat race (line-crossing tests need the pre-movement position)
+    this.updateRace();
 
     // 3. Campfire Light Warm Flicker
     if (this.campfireLight) {
