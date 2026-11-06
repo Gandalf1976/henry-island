@@ -1,5 +1,8 @@
 import { ScavengerItemDef } from '../types';
-import { getDateSeed, getTodayDateKey } from '../utils/dailyClock';
+import { getTodayDateKey } from '../utils/dailyClock';
+
+// Memoised per page load so the 3D world and hint modal share one layout.
+let sessionSpots: ScavengerItemDef[] | null = null;
 
 interface CandidateSpot {
   hint: string;
@@ -380,22 +383,27 @@ const STAR_SPOTS: CandidateSpot[] = [
 ];
 
 /**
- * Returns the 5 daily scavenger hunt items with locations that change each day across the whole map (island, lake, ocean).
+ * Returns the 5 scavenger hunt items for the current session, with their
+ * locations randomised across the whole map (island, lake, ocean).
+ *
+ * The layout is picked ONCE per page load (module-level memo) and reused
+ * for the whole session, so the 3D world and the hint modal always agree
+ * on where each item is — while a fresh page load gives a fresh hunt.
+ * (The dateKey parameter is retained for call-site compatibility.)
  */
 export function getDailyScavengerItems(dateKey = getTodayDateKey()): ScavengerItemDef[] {
-  const seedBell = getDateSeed(dateKey + '-scav-bell');
-  const seedCookie = getDateSeed(dateKey + '-scav-cookie');
-  const seedGift = getDateSeed(dateKey + '-scav-gift');
-  const seedScarf = getDateSeed(dateKey + '-scav-scarf');
-  const seedStar = getDateSeed(dateKey + '-scav-star');
+  void dateKey;
 
-  const spotBell = BELL_SPOTS[seedBell % BELL_SPOTS.length];
-  const spotCookie = COOKIE_SPOTS[seedCookie % COOKIE_SPOTS.length];
-  const spotGift = GIFT_SPOTS[seedGift % GIFT_SPOTS.length];
-  const spotScarf = SCARF_SPOTS[seedScarf % SCARF_SPOTS.length];
-  const spotStar = STAR_SPOTS[seedStar % STAR_SPOTS.length];
+  if (sessionSpots) return sessionSpots;
 
-  return [
+  const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const spotBell = pick(BELL_SPOTS);
+  const spotCookie = pick(COOKIE_SPOTS);
+  const spotGift = pick(GIFT_SPOTS);
+  const spotScarf = pick(SCARF_SPOTS);
+  const spotStar = pick(STAR_SPOTS);
+
+  sessionSpots = [
     {
       id: 'item_bell',
       name: 'Golden Jingle Bell',
@@ -457,7 +465,9 @@ export function getDailyScavengerItems(dateKey = getTodayDateKey()): ScavengerIt
       color: 0xfef08a
     }
   ];
+
+  return sessionSpots;
 }
 
-// Backward-compatible export for today's items
+// Backward-compatible export for the current session's items
 export const DAILY_SCAVENGER_ITEMS: ScavengerItemDef[] = getDailyScavengerItems();

@@ -200,6 +200,7 @@ export class GuideModal {
                 <span class="text-slate-300 text-[10px]">Not in the word</span>
               </div>
             </div>
+            <p class="text-[11px] text-emerald-200 mt-2 font-bold">Points by guess: 1st 20 • 2nd 18 • 3rd 15 • 4th 12 • 5th 10 • 6th 5</p>
           </div>
 
           <!-- Game 2: Word Ladder -->
@@ -315,14 +316,14 @@ export class GuideModal {
             </h4>
             <div class="space-y-2 text-xs">
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
-                <strong class="text-emerald-300 block mb-1">🟩 Henry-Wordle (Up to 10 pts)</strong>
+                <strong class="text-emerald-300 block mb-1">🟩 Henry-Wordle (Up to 20 pts)</strong>
                 <div class="grid grid-cols-3 sm:grid-cols-6 gap-1 text-center font-bold text-[10px]">
-                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">1st try: 10 pts</span>
-                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">2nd try: 5 pts</span>
-                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">3rd try: 4 pts</span>
-                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">4th try: 3 pts</span>
-                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">5th try: 2 pts</span>
-                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">6th try: 1 pt</span>
+                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">1st try: 20 pts</span>
+                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">2nd try: 18 pts</span>
+                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">3rd try: 15 pts</span>
+                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">4th try: 12 pts</span>
+                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">5th try: 10 pts</span>
+                  <span class="bg-emerald-950 border border-emerald-500/50 p-1 rounded">6th try: 5 pts</span>
                 </div>
               </div>
 

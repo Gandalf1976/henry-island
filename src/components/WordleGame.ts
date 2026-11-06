@@ -146,8 +146,8 @@ export class WordleGame {
       this.isGameOver = true;
       this.isWin = true;
       const attempt = this.guesses.length;
-      // Scoring rules: 1st=10, 2nd=5, 3rd=4, 4th=3, 5th=2, 6th=1
-      const pointsMap: Record<number, number> = { 1: 10, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1 };
+      // Scoring rules: 1st=20, 2nd=18, 3rd=15, 4th=12, 5th=10, 6th=5
+      const pointsMap: Record<number, number> = { 1: 20, 2: 18, 3: 15, 4: 12, 5: 10, 6: 5 };
       this.score = pointsMap[attempt] || 1;
 
       soundAudio.playVictory();
@@ -274,12 +274,12 @@ export class WordleGame {
 
           <!-- Scoring Legend helper -->
           <div class="w-full bg-emerald-50 rounded-lg p-1.5 mb-3 flex justify-around text-xs font-semibold text-emerald-900 border border-emerald-200">
-            <span>1st: 10pts</span>
-            <span>2nd: 5pts</span>
-            <span>3rd: 4pts</span>
-            <span>4th: 3pts</span>
-            <span>5th: 2pts</span>
-            <span>6th: 1pt</span>
+            <span>1st: 20pts</span>
+            <span>2nd: 18pts</span>
+            <span>3rd: 15pts</span>
+            <span>4th: 12pts</span>
+            <span>5th: 10pts</span>
+            <span>6th: 5pts</span>
           </div>
 
           <!-- Wordle Grid -->

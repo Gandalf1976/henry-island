@@ -61,12 +61,12 @@ Average Score: Average points per day (e.g. 12.5 pts/day).
 🎮 The Daily Mini-Games Overview
 Game	Location	Time Limit	Rules & Scoring
 🟩 Henry-Wordle	Wordle Lodge	6 tries	Daily 5-letter word puzzle.
-• 1st try = 10 pts
-• 2nd try = 5 pts
-• 3rd try = 4 pts
-• 4th try = 3 pts
-• 5th try = 2 pts
-• 6th try = 1 pt
+• 1st try = 20 pts
+• 2nd try = 18 pts
+• 3rd try = 15 pts
+• 4th try = 12 pts
+• 5th try = 10 pts
+• 6th try = 5 pts
 🪷 Henry-Lake	Frozen Lake	120s	Scrambled 9-letter word anagram puzzle.
 • 1 pt per valid word (3+ letters) landing on lake lilypads.
 • +5 bonus points for finding the full 9-letter word!
