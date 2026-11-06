@@ -37,6 +37,9 @@
       ::-webkit-scrollbar-thumb:hover {
         background: rgba(100, 116, 139, 0.8);
       }
+      /* Scrollable menus (header / dock): scroll but hide the bar for a clean look */
+      .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+      .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
     </style>
   </head>
   <body class="h-full w-full overflow-hidden flex flex-col bg-slate-900 text-slate-100">
@@ -56,55 +59,55 @@
         </div>
       </div>
 
-      <!-- Action Controls -->
-      <div class="flex items-center gap-1.5 sm:gap-2">
+      <!-- Action Controls (scrollable on narrow screens) -->
+      <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 max-w-full overflow-x-auto no-scrollbar">
         
         <!-- Active Device Player Profile Badge -->
-        <button id="header-avatar-btn" class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-amber-400/70 rounded-full px-2.5 py-1 text-xs font-bold text-white shadow-sm transition transform active:scale-95" title="Click to view daily status & your snowman">
+        <button id="header-avatar-btn" class="shrink-0 flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-amber-400/70 rounded-full px-2.5 py-1 text-xs font-bold text-white shadow-sm transition transform active:scale-95" title="Click to view daily status & your snowman">
           <span id="header-avatar-emoji" class="text-lg">🎅</span>
           <span id="header-avatar-name" class="max-w-[70px] sm:max-w-[100px] truncate">Player</span>
           <span class="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-900 font-black text-[10px]" id="header-avatar-score">0 pts</span>
         </button>
 
         <!-- Daily Scavenger Hunt Button -->
-        <button id="header-scavenger-btn" title="Daily Scavenger Hunt (Find 5 holiday items for +2 pts)" class="flex items-center gap-1 bg-emerald-700/90 hover:bg-emerald-600 text-emerald-50 font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-emerald-400 transition transform active:scale-95">
+        <button id="header-scavenger-btn" title="Daily Scavenger Hunt (Find 5 holiday items for +2 pts)" class="shrink-0 flex items-center gap-1 bg-emerald-700/90 hover:bg-emerald-600 text-emerald-50 font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-emerald-400 transition transform active:scale-95">
           <span>🧭</span>
           <span class="hidden sm:inline">Hunt</span>
           <span id="header-scavenger-badge" class="px-1.5 py-0.2 bg-emerald-400 text-slate-900 text-[10px] font-black rounded-full">0/5</span>
         </button>
 
         <!-- Dad Reset Day Button (Dad Only) -->
-        <button id="header-dad-reset-btn" title="Reset Today's Games (Dad Only)" class="hidden flex items-center gap-1 bg-red-600/90 hover:bg-red-500 text-white font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-red-400 transition transform active:scale-95 animate-pulse">
+        <button id="header-dad-reset-btn" title="Reset Today's Games (Dad Only)" class="hidden shrink-0 flex items-center gap-1 bg-red-600/90 hover:bg-red-500 text-white font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-red-400 transition transform active:scale-95 animate-pulse">
           <span>🔄</span>
           <span class="hidden sm:inline">Reset Day</span>
         </button>
 
         <!-- Messages / Bulletin Board Button with Unread Badge -->
-        <button id="header-messages-btn" title="Family Bulletin Board" class="flex items-center gap-1 bg-amber-600/90 hover:bg-amber-500 text-amber-50 font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-amber-400 transition transform active:scale-95">
+        <button id="header-messages-btn" title="Family Bulletin Board" class="shrink-0 flex items-center gap-1 bg-amber-600/90 hover:bg-amber-500 text-amber-50 font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-amber-400 transition transform active:scale-95">
           <span>💬</span>
           <span class="hidden sm:inline">Messages</span>
           <span id="header-unread-badge" class="px-1.5 py-0.2 bg-red-500 text-white text-[10px] font-black rounded-full hidden">0</span>
         </button>
 
         <!-- Podium / Leaderboard Button -->
-        <button id="header-podium-btn" title="View Snowman Podium" class="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-amber-300 transition transform active:scale-95">
+        <button id="header-podium-btn" title="View Snowman Podium" class="shrink-0 flex items-center gap-1 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-black px-2.5 py-1 rounded-full text-xs shadow-md border border-amber-300 transition transform active:scale-95">
           <span>🏆</span>
           <span class="hidden sm:inline">Podium</span>
         </button>
 
         <!-- How to Play / Guide Button -->
-        <button id="header-guide-btn" title="How to Play & Island Guide" class="flex items-center gap-1 bg-sky-700/90 hover:bg-sky-600 text-sky-100 font-bold px-2.5 py-1 rounded-full text-xs shadow-md border border-sky-400/60 transition transform active:scale-95">
+        <button id="header-guide-btn" title="How to Play & Island Guide" class="shrink-0 flex items-center gap-1 bg-sky-700/90 hover:bg-sky-600 text-sky-100 font-bold px-2.5 py-1 rounded-full text-xs shadow-md border border-sky-400/60 transition transform active:scale-95">
           <span>📖</span>
           <span class="hidden sm:inline">Guide</span>
         </button>
 
         <!-- Manage Family Members Button -->
-        <button id="header-manage-btn" title="Manage Family Members" class="flex items-center gap-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-bold px-2 py-1 rounded-full text-xs border border-slate-600 transition transform active:scale-95">
+        <button id="header-manage-btn" title="Manage Family Members" class="shrink-0 flex items-center gap-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-bold px-2 py-1 rounded-full text-xs border border-slate-600 transition transform active:scale-95">
           <span>👥</span>
         </button>
 
         <!-- Sound Toggle -->
-        <button id="header-sound-btn" title="Toggle Sound" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-sky-800/80 hover:bg-sky-700 active:bg-sky-600 text-white flex items-center justify-center text-xs sm:text-sm border border-sky-400/50 shadow transition transform active:scale-95">
+        <button id="header-sound-btn" title="Toggle Sound" class="shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-sky-800/80 hover:bg-sky-700 active:bg-sky-600 text-white flex items-center justify-center text-xs sm:text-sm border border-sky-400/50 shadow transition transform active:scale-95">
           🔊
         </button>
 
@@ -119,7 +122,7 @@
       <div id="toast-container" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none"></div>
 
       <!-- Fast Navigation Quick-Travel Dock (Bottom-Center) -->
-      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 sm:gap-1.5 bg-slate-900/90 backdrop-blur-md px-2.5 sm:px-3 py-1.5 rounded-2xl border-2 border-sky-400/60 shadow-2xl max-w-[95vw] overflow-x-auto">
+      <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 sm:gap-1.5 bg-slate-900/90 backdrop-blur-md px-2.5 sm:px-3 py-1.5 rounded-2xl border-2 border-sky-400/60 shadow-2xl max-w-[95vw] overflow-x-auto no-scrollbar">
         <button id="travel-wordle" class="px-2 sm:px-2.5 py-1 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 border border-emerald-500 transition shrink-0">
           <span>🟩</span>
           <span class="hidden sm:inline">Wordle</span>
