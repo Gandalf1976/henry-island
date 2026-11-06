@@ -56,6 +56,8 @@ export interface LiveSyncPayload {
   p?: CompactPlayer[];
   /** Compact wire format: alias-keyed messages. */
   m?: CompactMessage[];
+  /** Deletion tombstones: player ids removed from the family roster (never re-add). */
+  d?: string[];
   enc?: 3;
   announcement?: string;
 }
@@ -137,7 +139,8 @@ function buildCompactPayload(
   messages: BulletinMessage[],
   maxDays: number,
   maxMessages: number,
-  senderName: string
+  senderName: string,
+  deletedIds: string[] = []
 ): LiveSyncPayload {
   const today = new Date();
   const yesterday = new Date();
@@ -198,7 +201,7 @@ function buildCompactPayload(
     ct: m.createdAt
   }));
 
-  return {
+  const payload: LiveSyncPayload = {
     enc: 3,
     type: 'score_update',
     senderDeviceId: '', // filled in by caller
@@ -207,6 +210,8 @@ function buildCompactPayload(
     p: compactPlayers,
     m: compactMessages
   };
+  if (deletedIds.length > 0) payload.d = deletedIds;
+  return payload;
 }
 
 function localDateKey(date: Date): string {
@@ -443,6 +448,8 @@ class LiveSyncManager {
       // Accept both the old full format and the new compact format.
       const players = payload.players ?? expandCompactPlayers(payload.p);
       const messages = payload.messages ?? expandCompactMessages(payload.m);
+      const deleted = Array.isArray(payload.d) ? payload.d.filter((x) => typeof x === 'string') : [];
+      let remoteRemovedNames: string[] = [];
 
       // full_sync is AUTHORITATIVE: replace the local roster wholesale
       // (used for admin resets — a max-merge would never lower scores).
@@ -475,8 +482,13 @@ class LiveSyncManager {
           return;
         }
         merged = familyStore.applyAuthoritativePlayers(players);
+        const rem = familyStore.applyRemoteDeletions(deleted);
+        if (rem.changed) merged = true;
+        remoteRemovedNames = rem.removedNames;
       } else {
-        merged = familyStore.mergeRemoteData(players, messages);
+        const res = familyStore.mergeRemoteData(players, messages, deleted);
+        merged = res.changed;
+        remoteRemovedNames = res.removedNames;
       }
 
       if (merged) {
@@ -484,7 +496,10 @@ class LiveSyncManager {
         this.notifyStatus();
 
         if (triggerSound) {
-          if (payload.type === 'score_update') {
+          if (remoteRemovedNames.length > 0) {
+            playSound('closedSign');
+            this.showToastNotification(`👋 ${remoteRemovedNames.join(', ')} removed from the family roster`);
+          } else if (payload.type === 'score_update') {
             playSound('victory');
             this.showToastNotification(
               payload.announcement || `${payload.senderName} just updated their score! ⛄`
@@ -538,10 +553,11 @@ class LiveSyncManager {
 
     const rawPlayers = familyStore.getPlayers();
     const rawMessages = familyStore.getMessages();
+    const rawDeleted = familyStore.getSyncableDeletedIds();
     const activePlayer = familyStore.getActivePlayer();
 
     // Prevent echoing identical state (unless a heartbeat forces it).
-    const hash = JSON.stringify({ p: rawPlayers, m: rawMessages });
+    const hash = JSON.stringify({ p: rawPlayers, m: rawMessages, d: rawDeleted });
     if (!opts.force && hash === this.lastSentHash && type !== 'new_message') {
       return;
     }
@@ -550,8 +566,8 @@ class LiveSyncManager {
     let bodyStr = '';
     let payload: LiveSyncPayload;
 
-    const build = (maxDays: number, maxMessages: number): string => {
-      const compact = buildCompactPayload(rawPlayers, rawMessages, maxDays, maxMessages, activePlayer.name);
+    const build = (maxDays: number, maxMessages: number, includeDeleted: boolean): string => {
+      const compact = buildCompactPayload(rawPlayers, rawMessages, maxDays, maxMessages, activePlayer.name, includeDeleted ? rawDeleted : []);
       compact.type = type;
       compact.senderDeviceId = this.deviceId;
       compact.announcement = announcement;
@@ -559,9 +575,10 @@ class LiveSyncManager {
     };
 
     // Tiers: keep the richest one that fits the inline limit.
-    bodyStr = build(7, 10);
-    if (bodyStr.length > MAX_INLINE) bodyStr = build(3, 5);
-    if (bodyStr.length > MAX_INLINE) bodyStr = build(2, 3);
+    bodyStr = build(7, 10, true);
+    if (bodyStr.length > MAX_INLINE) bodyStr = build(3, 5, true);
+    if (bodyStr.length > MAX_INLINE) bodyStr = build(2, 3, true);
+    if (bodyStr.length > MAX_INLINE) bodyStr = build(2, 3, false);
 
     payload = JSON.parse(bodyStr) as LiveSyncPayload;
     void payload; // (parsed only for clarity; bodyStr is what gets sent)

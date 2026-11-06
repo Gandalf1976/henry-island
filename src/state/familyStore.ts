@@ -7,6 +7,11 @@ const ACTIVE_PLAYER_KEY = 'henry_island_active_player_id';
 const DEVICE_LOCK_KEY = 'henry_island_device_player_id';
 const MESSAGES_KEY = 'henry_island_bulletin_messages_v1';
 const LAST_READ_MSG_KEY = 'henry_island_last_read_msg_ts';
+const DELETED_KEY = 'henry_island_deleted_players_v1';
+// Deletion tombstones stay on the sync wire for 30 days (ntfy re-delivers
+// old broadcasts — without a tombstone a removed player would come back).
+const TOMBSTONE_SYNC_WINDOW = 30 * 24 * 3600 * 1000;
+const TOMBSTONE_MAX = 50;
 
 export interface RaceLeaderboardEntry {
   rank: number;
@@ -46,6 +51,7 @@ class FamilyStore {
   private players: PlayerProfile[] = [];
   private activePlayerId: string = '';
   private messages: BulletinMessage[] = [];
+  private deletedPlayers: { id: string; ts: number }[] = [];
   private listeners: (() => void)[] = [];
 
   constructor() {
@@ -79,6 +85,37 @@ class FamilyStore {
     }
 
     if (this.players.length === 0) {
+      this.players = DEFAULT_FAMILY_MEMBERS.map((m, idx) => ({
+        id: 'player_' + (idx + 1),
+        name: m.name,
+        avatarId: m.avatarId,
+        totalScore: 0,
+        streak: 0,
+        lastPlayedDate: '',
+        history: {}
+      }));
+    }
+
+    // Deletion tombstones: players removed on any device. They keep the
+    // union-merge from resurrecting someone the family deleted.
+    try {
+      const rawDeleted = localStorage.getItem(DELETED_KEY);
+      if (rawDeleted) {
+        const parsedDeleted = JSON.parse(rawDeleted);
+        if (Array.isArray(parsedDeleted)) {
+          this.deletedPlayers = parsedDeleted.filter((d) => d && typeof d.id === 'string');
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse deletion tombstones, ignoring:', e);
+    }
+    if (this.deletedPlayers.length > 0) {
+      const deleted = new Set(this.deletedPlayers.map((d) => d.id));
+      this.players = this.players.filter((p) => !deleted.has(p.id));
+    }
+    if (this.players.length === 0) {
+      // Everything was deleted — recover with the default family.
+      this.deletedPlayers = [];
       this.players = DEFAULT_FAMILY_MEMBERS.map((m, idx) => ({
         id: 'player_' + (idx + 1),
         name: m.name,
@@ -138,6 +175,7 @@ class FamilyStore {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.players));
       localStorage.setItem(ACTIVE_PLAYER_KEY, this.activePlayerId);
       localStorage.setItem(MESSAGES_KEY, JSON.stringify(this.messages));
+      localStorage.setItem(DELETED_KEY, JSON.stringify(this.deletedPlayers));
     } catch (e) {
       console.error('Failed to save to localStorage:', e);
     }
@@ -234,8 +272,69 @@ class FamilyStore {
         localStorage.removeItem(DEVICE_LOCK_KEY);
       }
     }
+    // Tombstone the deletion so live sync can never resurrect the player.
+    this.markPlayerDeleted(playerId);
     this.notify();
     return true;
+  }
+
+  /** Record a deletion tombstone (persisted, and synced to the family). */
+  public markPlayerDeleted(playerId: string): void {
+    if (!playerId) return;
+    this.deletedPlayers = this.deletedPlayers.filter(d => d.id !== playerId);
+    this.deletedPlayers.push({ id: playerId, ts: Date.now() });
+    if (this.deletedPlayers.length > TOMBSTONE_MAX) {
+      this.deletedPlayers = this.deletedPlayers.slice(-TOMBSTONE_MAX);
+    }
+  }
+
+  public getDeletedPlayerIds(): string[] {
+    return this.deletedPlayers.map(d => d.id);
+  }
+
+  /** Tombstones still worth syncing (recent 30 days) — keeps the wire small. */
+  public getSyncableDeletedIds(): string[] {
+    const cutoff = Date.now() - TOMBSTONE_SYNC_WINDOW;
+    return this.deletedPlayers.filter(d => d.ts >= cutoff).map(d => d.id);
+  }
+
+  /**
+   * Apply deletions reported by another device: record tombstones and drop
+   * the players from the local roster (honouring the "at least one player"
+   * invariant — a device never deletes its only player).
+   */
+  public applyRemoteDeletions(ids: string[]): { removedNames: string[]; changed: boolean } {
+    const removedNames: string[] = [];
+    let changed = false;
+    for (const id of ids) {
+      if (!id || typeof id !== 'string') continue;
+      const idx = this.players.findIndex(p => p.id === id);
+      const present = idx !== -1;
+      // Tombstone players we drop — or that aren't here (so they never get
+      // re-added). If it's our only player we keep it and take no tombstone.
+      if (!present || this.players.length > 1) {
+        if (!this.deletedPlayers.some(d => d.id === id)) {
+          this.markPlayerDeleted(id);
+          changed = true;
+        }
+      }
+      if (present && this.players.length > 1) {
+        const [removed] = this.players.splice(idx, 1);
+        removedNames.push(removed.name);
+        if (this.activePlayerId === id) {
+          this.activePlayerId = this.players[0].id;
+          if (localStorage.getItem(DEVICE_LOCK_KEY) === id) {
+            localStorage.removeItem(DEVICE_LOCK_KEY);
+          }
+        }
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.save();
+      this.listeners.forEach(fn => fn());
+    }
+    return { removedNames, changed };
   }
 
   // --- Score Statistics & Leaderboard ---
@@ -646,14 +745,27 @@ class FamilyStore {
 
   // --- Remote Reconcile / Live Cloud Merge ---
 
-  public mergeRemoteData(remotePlayers?: PlayerProfile[], remoteMessages?: BulletinMessage[]): boolean {
+  public mergeRemoteData(remotePlayers?: PlayerProfile[], remoteMessages?: BulletinMessage[], remoteDeleted?: string[]): { changed: boolean; removedNames: string[] } {
     let changed = false;
+
+    // 0. Apply deletion tombstones reported by the other device, so removed
+    //    players disappear here too (and the merge below won't resurrect them).
+    let removedNames: string[] = [];
+    if (Array.isArray(remoteDeleted) && remoteDeleted.length > 0) {
+      const rem = this.applyRemoteDeletions(remoteDeleted);
+      removedNames = rem.removedNames;
+      if (rem.changed) changed = true;
+    }
 
     // 1. Merge players
     if (Array.isArray(remotePlayers) && remotePlayers.length > 0) {
       for (const remoteP of remotePlayers) {
         const localP = this.players.find(p => p.id === remoteP.id);
         if (!localP) {
+          // Deleted on another device? The tombstone wins — never resurrect.
+          if (remoteP.id && this.deletedPlayers.some(d => d.id === remoteP.id)) {
+            continue;
+          }
           // New player from another device!
           this.players.push(remoteP);
           changed = true;
@@ -786,7 +898,7 @@ class FamilyStore {
       this.listeners.forEach(fn => fn());
     }
 
-    return changed;
+    return { changed, removedNames };
   }
 
   /**
@@ -879,6 +991,10 @@ class FamilyStore {
     }
 
     this.players = clean;
+    // An admin rebuild that intentionally includes a player supersedes any
+    // stale deletion tombstone for them (they were re-added on purpose).
+    const present = new Set(clean.map(p => p.id));
+    this.deletedPlayers = this.deletedPlayers.filter(d => !present.has(d.id));
     this.save();
     this.listeners.forEach(fn => fn());
     return true;
@@ -906,6 +1022,9 @@ class FamilyStore {
         if (!this.players.some(p => p.id === this.activePlayerId)) {
           this.activePlayerId = this.players[0].id;
         }
+        // Imported roster is intentional — clear stale deletion tombstones for it.
+        const present = new Set(this.players.map(p => p.id));
+        this.deletedPlayers = this.deletedPlayers.filter(d => !present.has(d.id));
         this.notify();
         return true;
       }
