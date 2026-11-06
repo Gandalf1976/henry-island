@@ -76,7 +76,7 @@ export class IslandWorld3D {
   }[] = [];
 
   // Boat Race (daily course, repeatable)
-  private raceCourse: RaceCourse = { startLine: { x: 0, z: 118, nx: -1, nz: 0, dx: 0, dz: 1 }, gates: [] };
+  private raceCourse: RaceCourse = { dockAngle: 0.95, startLine: { x: 74, z: 104, nx: -0.58, nz: -0.81, dx: -0.81, dz: 0.58 }, gates: [] };
   private raceGateMeshes: { number: number; passed: boolean; numberPanelMat: THREE.MeshBasicMaterial }[] = [];
   private raceStartGroup!: THREE.Group;
   private raceNextGateBeam!: THREE.Mesh;
@@ -86,7 +86,23 @@ export class IslandWorld3D {
   private raceHudEl: HTMLElement | null = null;
   private raceTimerEl: HTMLElement | null = null;
   private raceGateEl: HTMLElement | null = null;
+  private raceThrottleEl: HTMLElement | null = null;
   private prevPos = new THREE.Vector3();
+
+  // Race dock: wooden pier at the south-east beach — the entry point for the boat race.
+  // The player walks out the pier, boards the boat at the tip, and crosses the start line.
+  private raceDockInnerR = 90;
+  private raceDockOuterR = 122;
+  private raceDockHalfW = 2.6;
+
+  // Race accelerator: 1.0x → 3.0x multiplier (1s to full); resets to 1.0x on direction change.
+  private raceThrottle = 1.0;
+  private lastInputDirX = 0;
+  private lastInputDirZ = 0;
+  private lastInputActive = false;
+
+  // Green direction arrow (~2 boat lengths long) pointing at the next gate.
+  private raceArrow!: THREE.Group;
 
   // Interactive targets
   private interactivePortals: {
@@ -1608,6 +1624,230 @@ export class IslandWorld3D {
     );
     this.raceNextGateBeam.visible = false;
     this.scene.add(this.raceNextGateBeam);
+
+    // Wooden race dock (pier) + green direction arrow
+    this.buildRaceDock();
+    this.buildRaceArrow();
+  }
+
+  /**
+   * Wooden boat-race dock: a pier extending from the south-east beach into
+   * the open sea. Walk out the pier, board the boat at the tip, then cross
+   * the GO line just past the end to launch the race.
+   */
+  private buildRaceDock(): void {
+    const a = this.raceCourse.dockAngle;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    const len = this.raceDockOuterR - this.raceDockInnerR;
+    const group = new THREE.Group();
+    const pierMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
+    const stripMat = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.8 });
+    const pileMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.9 });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.8 });
+
+    // Planked deck (local z = outward along the pier)
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(this.raceDockHalfW * 2, 0.4, len), pierMat);
+    deck.position.set(0, 1.6, len / 2);
+    deck.receiveShadow = true;
+    deck.castShadow = true;
+    group.add(deck);
+
+    // Plank strips for texture
+    for (let z = 2.5; z < len; z += 4) {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(this.raceDockHalfW * 2 - 0.5, 0.42, 0.5), stripMat);
+      strip.position.set(0, 1.6, z);
+      group.add(strip);
+    }
+
+    // Pilings along both edges
+    for (let z = 4; z < len; z += 9) {
+      for (const side of [-1, 1]) {
+        const pile = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 4.5, 8), pileMat);
+        pile.position.set(side * 4.5, -0.3, z);
+        group.add(pile);
+      }
+    }
+
+    // Railings (open at the tip so the boat slides out into the slipway)
+    for (const side of [-1, 1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.3, len * 0.82), railMat);
+      rail.position.set(side * this.raceDockHalfW, 2.5, len * 0.41);
+      rail.castShadow = true;
+      group.add(rail);
+      [len * 0.08, len * 0.3, len * 0.52, len * 0.74, len * 0.96].forEach(rz => {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.7, 0.4), railMat);
+        post.position.set(side * this.raceDockHalfW, 2.4, rz);
+        group.add(post);
+      });
+    }
+
+    // Mooring lanterns flanking the boat slipway at the tip
+    const lanternMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xf59e0b, emissiveIntensity: 0.65 });
+    for (const side of [-1, 1]) {
+      const lantern = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.45, 8), lanternMat);
+      lantern.position.set(side * this.raceDockHalfW, 3.6, len);
+      group.add(lantern);
+    }
+
+    // Overwater banner above the slipway: "RACE START ⛵"
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#0369a1';
+    ctx.fillRect(0, 0, 512, 128);
+    ctx.strokeStyle = '#e0f2fe';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(8, 8, 496, 112);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 64px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⛵ RACE START', 256, 66);
+    const bannerTex = new THREE.CanvasTexture(canvas);
+    const banner = new THREE.Mesh(
+      new THREE.PlaneGeometry(12, 3),
+      new THREE.MeshBasicMaterial({ map: bannerTex, side: THREE.DoubleSide })
+    );
+    banner.position.set(0, 8.4, len);
+    group.add(banner);
+    for (const side of [-1, 1]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 8.5, 8), pileMat);
+      pole.position.set(side * 6, 4.2, len);
+      group.add(pole);
+    }
+
+    // Beach signpost at the pier base
+    const sign = this.createSignpost('RACE DOCK', 'Walk Out, Then Sail ⛵');
+    sign.position.set(5.5, 0, -5);
+    group.add(sign);
+
+    group.position.set(ca * this.raceDockInnerR, 0, sa * this.raceDockInnerR);
+    group.rotation.y = Math.PI / 2 - a;
+    this.scene.add(group);
+  }
+
+  /** Green arrow (~2 boat lengths long) pointing at the next gate / start line. */
+  private buildRaceArrow(): void {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x22c55e,
+      transparent: true,
+      opacity: 0.85,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    const arrow = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.25, 8), mat);
+    shaft.position.z = 4;
+    arrow.add(shaft);
+    const head = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.8, 10), mat);
+    head.rotation.x = Math.PI / 2;
+    head.position.z = 9.4;
+    arrow.add(head);
+    arrow.visible = false;
+    this.raceArrow = arrow;
+    this.scene.add(arrow);
+  }
+
+  /** Is (x,z) on the race-dock deck? (allows walking the pier over the water) */
+  private isOnRaceDeck(x: number, z: number): boolean {
+    const a = this.raceCourse.dockAngle;
+    const along = x * Math.cos(a) + z * Math.sin(a);       // projection onto the pier axis
+    const cross = -x * Math.sin(a) + z * Math.cos(a);      // sideways offset
+    return (
+      along >= this.raceDockInnerR - 1.5 &&
+      along <= this.raceDockOuterR + 1.5 &&
+      Math.abs(cross) <= this.raceDockHalfW + 0.6
+    );
+  }
+
+  /** Boat mooring zone: the stretch of pier near the tip where the boat can be left. */
+  private canDisembarkAtRaceDock(x: number, z: number): boolean {
+    const a = this.raceCourse.dockAngle;
+    const along = x * Math.cos(a) + z * Math.sin(a);
+    const cross = -x * Math.sin(a) + z * Math.cos(a);
+    return (
+      along >= this.raceDockOuterR - 14 &&
+      along <= this.raceDockOuterR + 2 &&
+      Math.abs(cross) <= this.raceDockHalfW + 1.2
+    );
+  }
+
+  /** Point the green arrow (ahead of the boat) at the next race target. */
+  private updateRaceArrow(): void {
+    if (!this.raceArrow) return;
+    if (this.playerMode !== 'sailboat_ocean') {
+      this.raceArrow.visible = false;
+      return;
+    }
+    let tx = 0;
+    let tz = 0;
+    if (this.raceActive) {
+      const g = this.raceCourse.gates[this.nextGateIdx];
+      if (!g) {
+        this.raceArrow.visible = false;
+        return;
+      }
+      tx = g.x;
+      tz = g.z;
+    } else {
+      const s = this.raceCourse.startLine;
+      tx = s.x;
+      tz = s.z;
+    }
+    const dx = tx - this.playerPos.x;
+    const dz = tz - this.playerPos.z;
+    const dist = Math.hypot(dx, dz);
+    // Hide when very close, or when moored right at the dock (pointing backward)
+    if (dist < 8 || (!this.raceActive && dist < 20 && this.canDisembarkAtRaceDock(this.playerPos.x, this.playerPos.z))) {
+      this.raceArrow.visible = false;
+      return;
+    }
+    const yaw = Math.atan2(dx, dz);
+    this.raceArrow.rotation.y = yaw;
+    this.raceArrow.position.set(
+      this.playerPos.x + Math.sin(yaw) * 6,
+      this.playerPos.y + 0.35,
+      this.playerPos.z + Math.cos(yaw) * 6
+    );
+    const t = this.clock.getElapsedTime();
+    this.raceArrow.scale.setScalar(1 + Math.sin(t * 4) * 0.06);
+    this.raceArrow.visible = true;
+  }
+
+  /**
+   * Race accelerator (race mode only): holding a direction ramps 1.0x → 3.0x
+   * over 1 second; changing direction resets to 1.0x; releasing decays back.
+   */
+  private updateRaceThrottle(dx: number, dz: number, len: number, delta: number): number {
+    if (this.playerMode !== 'sailboat_ocean' || !this.raceActive) {
+      this.raceThrottle = 1.0;
+      this.lastInputActive = false;
+      return 1.0;
+    }
+    if (len < 0.05) {
+      // No input: idle back to base speed (1s to return)
+      this.raceThrottle = Math.max(1.0, this.raceThrottle - delta * 2);
+      this.lastInputActive = false;
+      return this.raceThrottle;
+    }
+    const nx = dx / len;
+    const nz = dz / len;
+    if (this.lastInputActive) {
+      const dot = nx * this.lastInputDirX + nz * this.lastInputDirZ;
+      if (dot < 0.85) {
+        this.raceThrottle = 1.0; // direction changed → back to base speed
+      } else {
+        this.raceThrottle = Math.min(3.0, this.raceThrottle + delta * 2); // 1s to full (1x→3x)
+      }
+    } else {
+      this.raceThrottle = 1.0; // fresh press starts from base speed
+    }
+    this.lastInputDirX = nx;
+    this.lastInputDirZ = nz;
+    this.lastInputActive = true;
+    return this.raceThrottle;
   }
 
   /** HUD strip shown while a race is running. */
@@ -1623,11 +1863,13 @@ export class IslandWorld3D {
     el.innerHTML = `
       <span class="text-xs font-bold text-sky-200">⏱ <span id="henry-race-timer">0:00.000</span></span>
       <span class="text-xs font-black text-amber-300" id="henry-race-gate">Gate 1/10</span>
+      <span class="text-xs font-black text-green-400" id="henry-race-throttle">⚡ ×1.0</span>
     `;
     document.body.appendChild(el);
     this.raceHudEl = el;
     this.raceTimerEl = el.querySelector('#henry-race-timer') as HTMLElement;
     this.raceGateEl = el.querySelector('#henry-race-gate') as HTMLElement;
+    this.raceThrottleEl = el.querySelector('#henry-race-throttle') as HTMLElement;
   }
 
   /**
@@ -1707,6 +1949,9 @@ export class IslandWorld3D {
     if (this.raceGateEl && g) {
       this.raceGateEl.textContent = `Gate ${Math.min(this.nextGateIdx + 1, 10)}/10`;
     }
+    if (this.raceThrottleEl) {
+      this.raceThrottleEl.textContent = `⚡ ×${this.raceThrottle.toFixed(1)}`;
+    }
   }
 
   private updateNextGateBeam(): void {
@@ -1723,6 +1968,7 @@ export class IslandWorld3D {
   private abortRace(message: string): void {
     this.raceActive = false;
     this.nextGateIdx = 0;
+    this.raceThrottle = 1.0;
     this.raceNextGateBeam.visible = false;
     if (this.raceHudEl) {
       this.raceHudEl.classList.add('hidden');
@@ -1734,6 +1980,7 @@ export class IslandWorld3D {
   private finishRace(timeMs: number): void {
     this.raceActive = false;
     this.nextGateIdx = 0;
+    this.raceThrottle = 1.0;
     this.raceNextGateBeam.visible = false;
     if (this.raceHudEl) {
       this.raceHudEl.classList.add('hidden');
@@ -3190,16 +3437,15 @@ export class IslandWorld3D {
 
   public teleportTo(id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa' | 'race'): void {
     if (id === 'race') {
-      // Teleport the boat just short of the race start line (island side).
-      this.setPlayerMode('sailboat_ocean');
-      const s = this.raceCourse.startLine;
-      this.playerPos.x = s.x + s.nx * 8;
-      this.playerPos.z = s.z + s.nz * 8;
-      this.playerPos.y = -0.4;
+      // Teleport to the race dock on the south-east beach: walk out the pier,
+      // board the boat at the tip, then cross the GO line to start the race.
+      this.setPlayerMode('avatar');
+      const a = this.raceCourse.dockAngle;
+      this.playerPos.set(Math.cos(a) * 88, 1.8, Math.sin(a) * 88);
       this.prevPos.copy(this.playerPos);
-      this.sailboatGroup.position.set(this.playerPos.x, this.playerPos.y, this.playerPos.z);
-      this.sailboatGroup.rotation.y = Math.atan2(s.nx, s.nz);
-      this.showCollectToast('🏁 Teleported to the Race Start — cross the line to begin!');
+      this.playerGroup.position.copy(this.playerPos);
+      this.playerTargetRotation = Math.PI / 2 - a;
+      this.showCollectToast('⛵ Race Dock! Walk out the pier, board at the tip, cross the GO line!');
       return;
     }
 
@@ -3273,8 +3519,10 @@ export class IslandWorld3D {
     }
 
     const len = Math.hypot(dx, dz);
+    const throttle = this.updateRaceThrottle(dx, dz, len, delta);
     if (len > 0.05) {
-      const moveSpeed = this.playerMode === 'avatar' ? 16.0 : 19.0;
+      const baseSpeed = this.playerMode === 'avatar' ? 16.0 : 19.0;
+      const moveSpeed = baseSpeed * (this.playerMode === 'sailboat_ocean' ? throttle : 1.0);
       const normX = dx / Math.max(1, len);
       const normZ = dz / Math.max(1, len);
 
@@ -3299,11 +3547,15 @@ export class IslandWorld3D {
           this.playerPos.z = 4 + Math.sin(angle) * 19.8;
         }
 
-        // B. Ocean Entry: Walking past the island beach coastline into the open sea
+        // B. Ocean Entry: Walking past the island beach coastline into the open sea —
+        //    EXCEPT on the race-dock pier, where you can walk all the way to the tip
         const angleFromCenter = Math.atan2(this.playerPos.z, this.playerPos.x);
         const coastRadius = this.getIslandRadius(angleFromCenter);
         const distFromCenter = Math.hypot(this.playerPos.x, this.playerPos.z);
-        if (distFromCenter > coastRadius + 1.8) {
+        if (this.isOnRaceDeck(this.playerPos.x, this.playerPos.z)) {
+          // Walking the race dock pier (deck is above the water) — stay on foot
+          this.playerPos.y = 1.8;
+        } else if (distFromCenter > coastRadius + 1.8) {
           // Board Sailboat on the Open Ocean!
           this.setPlayerMode('sailboat_ocean');
         }
@@ -3359,7 +3611,22 @@ export class IslandWorld3D {
         // Re-enter island at ANY point along the coastline!
         const angleFromCenter = Math.atan2(this.playerPos.z, this.playerPos.x);
         const coastRadius = this.getIslandRadius(angleFromCenter);
-        if (distFromCenter <= coastRadius + 0.8) {
+        if (this.canDisembarkAtRaceDock(this.playerPos.x, this.playerPos.z)) {
+          // Moored at the race dock pier tip -> step back on the deck
+          this.setPlayerMode('avatar');
+          const a = this.raceCourse.dockAngle;
+          const ca = Math.cos(a);
+          const sa = Math.sin(a);
+          const along = Math.min(
+            Math.max(this.playerPos.x * ca + this.playerPos.z * sa, this.raceDockInnerR + 2),
+            this.raceDockOuterR - 1
+          );
+          this.playerPos.x = ca * along;
+          this.playerPos.z = sa * along;
+          this.playerPos.y = 1.8;
+          this.prevPos.copy(this.playerPos);
+          this.showCollectToast('🚶 Back on the race dock!');
+        } else if (distFromCenter <= coastRadius + 0.8) {
           // Stepped ashore -> turn back into avatar!
           this.setPlayerMode('avatar');
           this.playerPos.y = 1.8;
@@ -3536,6 +3803,9 @@ export class IslandWorld3D {
 
     // 3b. Boat race (line-crossing tests need the pre-movement position)
     this.updateRace();
+
+    // 3c. Green direction arrow toward the next gate
+    this.updateRaceArrow();
 
     // 3. Campfire Light Warm Flicker
     if (this.campfireLight) {

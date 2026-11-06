@@ -368,7 +368,8 @@ export class GuideModal {
 
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <strong class="text-sky-300 block mb-1">🏁 Boat Race (repeatable)</strong>
-                <p class="text-slate-300 text-[11px]">Race around the island through 10 numbered gates. Fastest time of the day: <strong>15 pts</strong> • 2nd 12 • 3rd 10 • 4th 8 • 5th 5 • 6th 3. Live re-ranking — points lock at midnight!</p>
+                <p class="text-slate-300 text-[11px]">Start at the <strong>Race Dock</strong> on the south-east beach: walk out the wooden pier, board the boat at the tip, and cross the <strong>GO line</strong> to launch. Race through 10 numbered gates in order — a <strong>green arrow</strong> always points at your next gate. Fastest time of the day: <strong>15 pts</strong> • 2nd 12 • 3rd 10 • 4th 8 • 5th 5 • 6th 3. Live re-ranking — points lock at midnight!</p>
+                <p class="text-green-300 text-[11px] mt-1">⚡ <strong>Accelerator:</strong> hold your direction and the engine builds up to <strong>3× speed</strong> (1 second to full). Change direction and it drops back to base speed — smooth and precise around the gates wins the race!</p>
               </div>
             </div>
           </div>

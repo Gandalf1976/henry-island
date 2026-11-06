@@ -35,6 +35,8 @@ export interface RaceStartLine {
 }
 
 export interface RaceCourse {
+  /** Angle from the island centre (east = 0) — the wooden race dock is built here (east of south). */
+  dockAngle: number;
   startLine: RaceStartLine;
   gates: RaceGate[]; // index 0 = gate 1 ... index 9 = gate 10
 }
@@ -74,14 +76,15 @@ function radialVectors(angle: number): { nx: number; nz: number; dx: number; dz:
 export function getDailyRaceCourse(dateKey: string = getTodayDateKey()): RaceCourse {
   const rnd = mulberry32(getDateSeed(`${dateKey}-boat-race-v1`) || 1);
 
-  // Start line: just off the island's eastern beach (near the boat dock side),
-  // oriented along the coast so the boat crosses it radially.
-  const startAngle = 0.75; // east-south-east, off the lake/beach shore
-  const startDist = 118;
-  const start = radialVectors(startAngle);
+  // Start line: just off the island's south-east beach, aligned with the
+  // wooden race dock (pier tip) so racers launch from the dock and cross
+  // the line a few units out. Oriented along the coast, crossed radially.
+  const dockAngle = 0.95; // east of south (south-east, beside the Word Ladder mountain lobe)
+  const startDist = 128; // just beyond the pier tip (dock outer radius = 122)
+  const start = radialVectors(dockAngle);
   const startLine: RaceStartLine = {
-    x: Math.cos(startAngle) * startDist,
-    z: Math.sin(startAngle) * startDist,
+    x: Math.cos(dockAngle) * startDist,
+    z: Math.sin(dockAngle) * startDist,
     ...start
   };
 
@@ -123,7 +126,7 @@ export function getDailyRaceCourse(dateKey: string = getTodayDateKey()): RaceCou
     };
   });
 
-  return { startLine, gates };
+  return { dockAngle, startLine, gates };
 }
 
 /** Formats a millisecond duration as m:ss.mmm (race times are shown to the millisecond). */
