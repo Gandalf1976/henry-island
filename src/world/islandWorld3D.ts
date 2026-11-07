@@ -7,6 +7,8 @@ import { GameType } from '../types';
 import { playSound, soundAudio } from '../utils/audio';
 import { getTodayDateKey } from '../utils/dailyClock';
 import { formatRaceTime, getDailyRaceCourse, RACE_GATE_WIDTH, RACE_START_WIDTH, RaceCourse } from '../utils/raceCourse';
+import { currentAdventDay, ADVENT_DAYS, AdventDoor } from '../data/advent';
+import { buildGiftBoxWall, buildAdventDecorations, buildAdventCosmetic, buildGoldenGift, buildChallengeItem, buildSleighFinale } from './adventDecor';
 
 export interface World3DCallbacks {
   onTriggerGame: (gameType: GameType) => void;
@@ -15,6 +17,8 @@ export interface World3DCallbacks {
   onOpenAvatar: () => void;
   /** Boat race finished (millisecond time). */
   onRaceComplete?: (timeMs: number) => void;
+  /** Open the Advent Calendar modal. */
+  onOpenAdvent?: () => void;
 }
 
 export class IslandWorld3D {
@@ -106,7 +110,7 @@ export class IslandWorld3D {
 
   // Interactive targets
   private interactivePortals: {
-    id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa';
+    id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa' | 'advent';
     pos: THREE.Vector3;
     radius: number;
     title: string;
@@ -127,6 +131,20 @@ export class IslandWorld3D {
   private sailboatGroup!: THREE.Group;
   private boatPennant?: THREE.Mesh;
   private boatWakeTimer: number = 0;
+
+  // Advent Calendar (24 doors, date-driven, shared by the family)
+  private adventWallGroup!: THREE.Group;
+  private adventDecorGroup!: THREE.Group;
+  private adventCosmeticGroup: THREE.Group | null = null;
+  private adventFinaleGroup: THREE.Group | null = null;
+  private adventWallHome = new THREE.Vector3();
+  private adventTreasure: { group: THREE.Group; basePos: THREE.Vector3; area: string } | null = null;
+  private adventChallenge: { items: { group: THREE.Group; basePos: THREE.Vector3; collected: boolean }[]; count: number; startedAt: number | null } | null = null;
+  private adventEventDoor: AdventDoor | null = null;
+  private adventLastOpened = -1;
+  private adventLastDay = -1;
+  private adventLastCosmetic = "";
+
 
   // Proximity prompt
   private promptEl: HTMLElement | null = null;
@@ -174,6 +192,7 @@ export class IslandWorld3D {
     this.buildExplorationAreas();
     this.buildDecorations();
     this.buildScavengerItems();
+    this.buildAdventCalendar();
     this.buildOceanBoundary();
     this.raceCourse = getDailyRaceCourse();
     this.buildRaceCourse();
@@ -195,6 +214,7 @@ export class IslandWorld3D {
     this.unsubscribeStore = familyStore.subscribe(() => {
       this.updatePodiumSnowmen();
       this.syncScavengerItemVisibility();
+      this.syncAdventVisuals();
     });
 
     // 10. Start Animation Loop
@@ -1492,6 +1512,212 @@ export class IslandWorld3D {
     this.scavengerMeshes.forEach(m => {
       m.group.visible = !foundIds.includes(m.id);
     });
+  }
+
+  // ---------------- Advent Calendar (3D) ----------------
+
+  /** Land / lake / ocean candidate spots for the daily advent treasure & challenge. */
+  private adventSpots(area: 'any' | 'ocean' | 'land'): { x: number; y: number; z: number }[] {
+    const land = [
+      { x: 0, y: 2.2, z: -18 }, { x: -16, y: 2.2, z: 4 }, { x: 16, y: 2.2, z: -6 },
+      { x: -30, y: 2.2, z: -18 }, { x: 32, y: 2.2, z: 16 }, { x: -8, y: 2.2, z: 30 },
+      { x: 24, y: 2.2, z: 30 }, { x: -26, y: 2.2, z: 8 }
+    ];
+    const lake = [
+      { x: 48, y: 1.8, z: 4 }, { x: 52, y: 1.8, z: 8 }, { x: 44, y: 1.8, z: -4 }
+    ];
+    const ocean = [
+      { x: 0, y: -0.4, z: -110 }, { x: 110, y: -0.4, z: 10 }, { x: -105, y: -0.4, z: 0 },
+      { x: 10, y: -0.4, z: 110 }, { x: -80, y: -0.4, z: -70 }, { x: 85, y: -0.4, z: 60 }
+    ];
+    if (area === 'ocean') return ocean;
+    if (area === 'land') return [...land, ...lake];
+    return [...land, ...lake, ...ocean];
+  }
+
+  private randomAdventSpot(area: 'any' | 'ocean' | 'land'): { x: number; y: number; z: number } {
+    const pool = this.adventSpots(area);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  /** Build the gift-box wall + communal decoration layer. */
+  private buildAdventCalendar(): void {
+    const active = familyStore.getActivePlayer();
+    const day = currentAdventDay();
+
+    this.adventWallGroup = buildGiftBoxWall(familyStore.getAdventOpened(active.id), day);
+    this.adventWallHome.set(0, 1.8, -20);
+    this.adventWallGroup.position.copy(this.adventWallHome);
+    this.scene.add(this.adventWallGroup);
+
+    this.adventDecorGroup = buildAdventDecorations(day);
+    this.scene.add(this.adventDecorGroup);
+
+    this.applyAdventCosmetic(familyStore.getWornAdventCosmetic(active.id));
+  }
+
+  /** Re-sync advent visuals after any store change (opened boxes, cosmetics, day, finale). */
+  private syncAdventVisuals(): void {
+    const active = familyStore.getActivePlayer();
+    const day = currentAdventDay();
+    const opened = familyStore.getAdventOpened(active.id);
+    const worn = familyStore.getWornAdventCosmetic(active.id);
+
+    const wallChanged = opened !== this.adventLastOpened || day !== this.adventLastDay;
+    const cosmeticChanged = worn !== this.adventLastCosmetic;
+    if (!wallChanged && !cosmeticChanged) return;
+
+    if (wallChanged) {
+      this.adventLastOpened = opened;
+      this.adventLastDay = day;
+      if (this.adventWallGroup) {
+        this.scene.remove(this.adventWallGroup);
+        this.adventWallGroup = buildGiftBoxWall(opened, day);
+        this.adventWallGroup.position.copy(this.adventWallHome);
+        this.scene.add(this.adventWallGroup);
+      }
+      if (this.adventDecorGroup) {
+        this.scene.remove(this.adventDecorGroup);
+        this.adventDecorGroup = buildAdventDecorations(day);
+        this.scene.add(this.adventDecorGroup);
+      }
+      this.syncAdventFinale(day);
+    }
+    if (cosmeticChanged) {
+      this.adventLastCosmetic = worn;
+      this.applyAdventCosmetic(worn);
+    }
+  }
+
+  private syncAdventFinale(day: number): void {
+    const isFinale = day === ADVENT_DAYS; // day 24
+    if (isFinale) {
+      if (!this.adventFinaleGroup) {
+        this.adventFinaleGroup = buildSleighFinale();
+        this.adventFinaleGroup.position.set(0, 1.8, 30);
+        this.scene.add(this.adventFinaleGroup);
+      }
+    } else if (this.adventFinaleGroup) {
+      this.scene.remove(this.adventFinaleGroup);
+      this.adventFinaleGroup = null;
+    }
+  }
+
+  /** Attach/detach the active player's advent cosmetic on their avatar. */
+  private applyAdventCosmetic(id: string): void {
+    if (this.adventCosmeticGroup) {
+      this.playerGroup.remove(this.adventCosmeticGroup);
+      this.adventCosmeticGroup = null;
+    }
+    if (!id) return;
+    const c = buildAdventCosmetic(id);
+    if (c) {
+      this.adventCosmeticGroup = c;
+      this.playerGroup.add(c);
+    }
+  }
+
+  /** Called by the app when the player opens a treasure / challenge / finale door. */
+  public spawnAdventWorldEvent(e: { kind: 'treasure' | 'challenge' | 'finale'; door: AdventDoor }): void {
+    this.clearAdventEvents();
+    this.adventEventDoor = e.door;
+
+    if (e.kind === 'treasure') {
+      const area = e.door.treasureArea || 'any';
+      const spot = this.randomAdventSpot(area);
+      const group = buildGoldenGift();
+      group.position.set(spot.x, spot.y, spot.z);
+      this.scene.add(group);
+      this.adventTreasure = { group, basePos: new THREE.Vector3(spot.x, spot.y, spot.z), area };
+      this.showCollectToast(`🔔 ${e.door.title} is hidden across the island! First to find it wins +${e.door.treasurePoints || 0}!`);
+    } else if (e.kind === 'challenge') {
+      const count = e.door.challengeCount || 3;
+      const area = e.door.challengeArea || 'any';
+      const colors = [0x60a5fa, 0xf472b6, 0x4ade80, 0xfacc15, 0xc084fc, 0xfb923c, 0x22d3ee, 0xa3e635];
+      const items: { group: THREE.Group; basePos: THREE.Vector3; collected: boolean }[] = [];
+      for (let i = 0; i < count; i++) {
+        const spot = this.randomAdventSpot(area);
+        const group = buildChallengeItem(i, colors[i % colors.length]);
+        group.position.set(spot.x, spot.y, spot.z);
+        this.scene.add(group);
+        items.push({ group, basePos: new THREE.Vector3(spot.x, spot.y, spot.z), collected: false });
+      }
+      this.adventChallenge = { items, count, startedAt: null };
+      this.showCollectToast(`⏱️ ${e.door.title}! Collect all ${count} glowing items!`);
+    } else if (e.kind === 'finale') {
+      this.syncAdventFinale(ADVENT_DAYS);
+      soundAudio.playVictory();
+      confetti({ particleCount: 160, spread: 100, origin: { y: 0.6 } });
+      this.showCollectToast(`🎄 ${e.door.title} — Merry Christmas, Henry Family!`);
+    }
+  }
+
+  private clearAdventEvents(): void {
+    if (this.adventTreasure) { this.scene.remove(this.adventTreasure.group); this.adventTreasure = null; }
+    if (this.adventChallenge) {
+      this.adventChallenge.items.forEach(it => this.scene.remove(it.group));
+      this.adventChallenge = null;
+    }
+  }
+
+  /** Per-frame: golden treasure bob + single-taker pickup. */
+  private updateAdventTreasure(delta: number, time: number): void {
+    const t = this.adventTreasure;
+    if (!t) return;
+    const active = familyStore.getActivePlayer();
+    const door = this.adventEventDoor;
+    t.group.position.y = t.basePos.y + Math.sin(time * 3) * 0.25;
+    t.group.rotation.y += delta * 1.6;
+
+    const taken = familyStore.getAdventTreasureTaker();
+    if (taken) {
+      t.group.visible = false; // someone claimed it (anyone)
+      return;
+    }
+
+    const pickup = this.playerMode === 'avatar' ? 3.8 : 5.5;
+    const dist = Math.hypot(this.playerPos.x - t.basePos.x, this.playerPos.z - t.basePos.z);
+    if (dist <= pickup) {
+      const res = familyStore.recordAdventTreasure(active.id, door?.treasurePoints || 0);
+      if (res.found) {
+        soundAudio.playVictory();
+        confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+        this.showCollectToast(res.awarded > 0 ? `🔔 ${door?.title || 'Golden treasure'} +${res.awarded} points!` : `The treasure was already claimed by another Islander.`);
+        t.group.visible = false;
+      }
+    }
+  }
+
+  /** Per-frame: challenge item bob, collect-all, timed finish. */
+  private updateAdventChallenge(delta: number, time: number): void {
+    const ch = this.adventChallenge;
+    if (!ch) return;
+    const active = familyStore.getActivePlayer();
+    const pickup = this.playerMode === 'avatar' ? 3.8 : 5.5;
+
+    for (let i = 0; i < ch.items.length; i++) {
+      const it = ch.items[i];
+      if (it.collected) { it.group.visible = false; continue; }
+      it.group.position.y = it.basePos.y + Math.sin(time * 3 + i) * 0.25;
+      it.group.rotation.y += delta * 1.6;
+      const dist = Math.hypot(this.playerPos.x - it.basePos.x, this.playerPos.z - it.basePos.z);
+      if (dist <= pickup) {
+        it.collected = true;
+        it.group.visible = false;
+        soundAudio.playJingle();
+        if (ch.startedAt === null) ch.startedAt = Date.now();
+      }
+    }
+
+    if (ch.startedAt !== null && ch.items.every(it => it.collected)) {
+      const timeMs = Date.now() - ch.startedAt;
+      const base = this.adventEventDoor?.challengePoints || 0;
+      const res = familyStore.recordAdventChallenge(active.id, timeMs, base);
+      soundAudio.playVictory();
+      confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 } });
+      this.showCollectToast(`🏅 Challenge complete in ${formatRaceTime(timeMs)}! +${res.points} points!`);
+      this.clearAdventEvents();
+    }
   }
 
   /**
@@ -3304,6 +3530,13 @@ export class IslandWorld3D {
         radius: 9,
         title: "🎅 Santa's Sleigh & Reindeer",
         actionText: 'Greet Santa & Rudolph'
+      },
+      {
+        id: 'advent',
+        pos: new THREE.Vector3(0, 1.8, -16),
+        radius: 7,
+        title: 'â',
+        actionText: 'Open the Advent Calendar'
       }
     ];
 
@@ -3435,7 +3668,7 @@ export class IslandWorld3D {
     this.joystickVector.y = y;
   }
 
-  public teleportTo(id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa' | 'race'): void {
+  public teleportTo(id: GameType | 'podium' | 'board' | 'elves' | 'hearth' | 'santa' | 'race' | 'advent'): void {
     if (id === 'race') {
       // Teleport to the race dock on the south-east beach: walk out the pier,
       // board the boat at the tip, then cross the GO line to start the race.
@@ -3486,6 +3719,8 @@ export class IslandWorld3D {
       soundAudio.playJingle();
     } else if (id === 'hearth') {
       this.showCollectToast("🔥 Cozy Hearth: 'The campfire crackles warmly as snow falls...'");
+    } else if (id === 'advent') {
+      this.callbacks.onOpenAdvent?.();
       soundAudio.playJingle();
     }
   }
@@ -3800,6 +4035,8 @@ export class IslandWorld3D {
     // 3. Proximity checks
     this.checkProximity();
     this.updateScavengerProximity(delta, time);
+    this.updateAdventTreasure(delta, time);
+    this.updateAdventChallenge(delta, time);
 
     // 3b. Boat race (line-crossing tests need the pre-movement position)
     this.updateRace();

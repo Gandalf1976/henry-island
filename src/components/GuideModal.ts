@@ -1,4 +1,5 @@
 import { soundAudio } from '../utils/audio';
+import { currentAdventDay, ADVENT_START, ADVENT_DAYS } from '../data/advent';
 
 export class GuideModal {
   private container: HTMLElement;
@@ -82,6 +83,13 @@ export class GuideModal {
     `;
 
     this.wireEvents();
+  }
+
+  private adventSummary(): string {
+    const adventDay = currentAdventDay();
+    return adventDay > 0
+      ? `For ${ADVENT_DAYS} days, one gift box opens each day! Today is <strong>Day ${adventDay}</strong>. Open it from the <strong>Advent</strong> button (or the glowing box wall by the tree) to reveal the surprise: Santa's letters, new wardrobe looks, bonus points, golden treasures, family challenges, special game variants & a big finale. Each box opens once per person — and only the <strong>first</strong> to grab a golden treasure or finish a challenge wins!`
+      : `Opens on <strong>${ADVENT_START}</strong>: ${ADVENT_DAYS} days of daily gift boxes — Santa's letters, wardrobe looks, bonus points, golden treasures, family challenges, game variants and a sleigh finale!`;
   }
 
   private renderTabContent(): string {
@@ -370,6 +378,10 @@ export class GuideModal {
                 <strong class="text-sky-300 block mb-1">🏁 Boat Race (repeatable)</strong>
                 <p class="text-slate-300 text-[11px]">Start at the <strong>Race Dock</strong> on the south-east beach: walk out the wooden pier, board the boat at the tip, and cross the <strong>GO line</strong> to launch. Race through 10 numbered gates in order — a <strong>green arrow</strong> always points at your next gate. Fastest time of the day: <strong>15 pts</strong> • 2nd 12 • 3rd 10 • 4th 8 • 5th 5 • 6th 3. Live re-ranking — points lock at midnight!</p>
                 <p class="text-green-300 text-[11px] mt-1">⚡ <strong>Accelerator:</strong> hold your direction and the engine builds up to <strong>3× speed</strong> (1 second to full). Change direction and it drops back to base speed — smooth and precise around the gates wins the race!</p>
+              </div>
+              <div class="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/40">
+                <strong class="text-rose-300 block mb-1">🎁 Advent Calendar</strong>
+                <p class="text-slate-300 text-[11px]">${this.adventSummary()}</p>
               </div>
             </div>
           </div>

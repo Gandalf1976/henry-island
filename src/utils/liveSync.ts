@@ -76,6 +76,9 @@ interface CompactDay {
   rt?: number; // boat race best time (ms)
   rl?: number; // locked race points
   lk?: 0 | 1; // race ranking locked
+  at?: 0 | 1; // advent golden treasure found
+  ac?: number; // advent challenge best time (ms)
+  ap?: number; // advent challenge points
 }
 
 interface CompactPlayer {
@@ -85,6 +88,10 @@ interface CompactPlayer {
   ts: number;
   st: number;
   ld: string;
+  ao?: number; // advent opened boxes (24-bit bitfield)
+  as?: string; // advent session id (start date)
+  au?: number; // advent unlocked cosmetics (6-bit bitfield)
+  ac?: string; // advent worn cosmetic id
   h: { [date: string]: CompactDay };
 }
 
@@ -179,6 +186,9 @@ function buildCompactPayload(
       if (day.raceTimeMs !== undefined) dayRec.rt = day.raceTimeMs;
       if (day.raceLockedPoints !== undefined) dayRec.rl = day.raceLockedPoints;
       if (day.raceLocked) dayRec.lk = 1;
+      if (day.adventTreasureFound) dayRec.at = 1;
+      if (day.adventChallengeTimeMs !== undefined) dayRec.ac = day.adventChallengeTimeMs;
+      if (day.adventChallengePoints !== undefined) dayRec.ap = day.adventChallengePoints;
       h[d] = dayRec;
     }
     return {
@@ -188,6 +198,10 @@ function buildCompactPayload(
       ts: p.totalScore || 0,
       st: p.streak || 0,
       ld: p.lastPlayedDate || '',
+      ao: p.adventOpened || 0,
+      as: p.adventSession || '',
+      au: p.adventUnlocked || 0,
+      ...(p.adventCosmetic ? { ac: p.adventCosmetic } : {}),
       h
     };
   });
@@ -244,7 +258,10 @@ function expandCompactPlayers(compact?: CompactPlayer[]): PlayerProfile[] | unde
         ...(day.sc === 1 ? { scavengerCompleted: true } : {}),
         ...(day.rt !== undefined ? { raceTimeMs: day.rt } : {}),
         ...(day.rl !== undefined ? { raceLockedPoints: day.rl } : {}),
-        ...(day.lk === 1 ? { raceLocked: true } : {})
+        ...(day.lk === 1 ? { raceLocked: true } : {}),
+        ...(day.at === 1 ? { adventTreasureFound: true } : {}),
+        ...(day.ac !== undefined ? { adventChallengeTimeMs: day.ac } : {}),
+        ...(day.ap !== undefined ? { adventChallengePoints: day.ap } : {})
       };
     }
     return {
@@ -254,6 +271,10 @@ function expandCompactPlayers(compact?: CompactPlayer[]): PlayerProfile[] | unde
       totalScore: cp.ts || 0,
       streak: cp.st || 0,
       lastPlayedDate: cp.ld || '',
+      ...(cp.ao !== undefined ? { adventOpened: cp.ao } : {}),
+      ...(cp.as ? { adventSession: cp.as } : {}),
+      ...(cp.au !== undefined ? { adventUnlocked: cp.au } : {}),
+      ...(cp.ac ? { adventCosmetic: cp.ac } : {}),
       history
     };
   });

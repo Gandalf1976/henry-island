@@ -1,3 +1,4 @@
+import { AdventModal } from './components/AdventModal';
 import { AvatarModal } from './components/AvatarModal';
 import { ClosedModal } from './components/ClosedModal';
 import { DevicePlayerSelectModal } from './components/DevicePlayerSelectModal';
@@ -42,7 +43,8 @@ class App {
       onOpenPodium: () => this.openPodiumModal(),
       onOpenMessageBoard: () => this.openMessageBoardModal(),
       onOpenAvatar: () => this.openAvatarModal(),
-      onRaceComplete: (timeMs) => this.onRaceComplete(timeMs)
+      onRaceComplete: (timeMs) => this.onRaceComplete(timeMs),
+      onOpenAdvent: () => this.openAdventModal()
     });
 
     // Midnight rollover: finalise & lock the finished day's race ranking
@@ -99,6 +101,12 @@ class App {
       soundAudio.playButtonClick();
       if (this.activeGameInstance || this.modalHost.children.length > 0) return;
       new ScavengerHuntModal(this.modalHost, () => this.closeModal());
+    });
+
+    // Advent Calendar Button -> Open Advent Modal
+    document.getElementById('header-advent-btn')?.addEventListener('click', () => {
+      soundAudio.playButtonClick();
+      this.openAdventModal();
     });
 
     // Dad Reset Day Button (Dad Only)
@@ -376,6 +384,17 @@ class App {
         });
       }
     }
+  }
+
+  private openAdventModal(): void {
+    if (this.activeGameInstance || this.modalHost.children.length > 0) return;
+    new AdventModal(
+      this.modalHost,
+      () => this.closeModal(),
+      (e) => {
+        this.world.spawnAdventWorldEvent(e);
+      }
+    );
   }
 
   private openAvatarModal(): void {

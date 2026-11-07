@@ -86,3 +86,31 @@ IMPORTANT
 
 The daily games (Wordle, Lake, Quiz, Word Ladder, Target 24) can only be played once per day per player. Once completed, a wooden CLOSED sign appears on the entrance until midnight reset.
 The **Boat Race is repeatable** — sail it as many times as you like; your best time of the day is what counts on the race board.
+
+---
+
+## 🎁 Advent Calendar
+
+A 24-door advent calendar — one gift box opens each day for a full 24-day season. Walk to the glowing **wall of gift boxes** by the tree, or tap the **Advent** button, to open the day. Each player opens their own boxes, and every box opens **once per person per season** — a synced 24-bit "opened" flag keeps it consistent across the whole family.
+
+Each door holds one of six kinds of surprise:
+
+- ✉️ **Santa's Letters** — a warm note + a small bonus.
+- 👛 **Wardrobe** — unlock and wear a new look (6 advent cosmetics).
+- ⭐ **Bonus Points** — a straight add to your total score.
+- 🪀 **Golden Treasure** — a golden gift spawns somewhere on the island; the **first** family member to find it wins the points.
+- ⚡ **Challenges** — a one-shot timed task (e.g. snowball the elf); a live daily leaderboard with rank points.
+- 🎲 **Game-variant Days** — a one-day mode (golden Wordle, lightning Lake, hard Quiz, ×2 Target 24, express Word Ladder) worth bonus points.
+- 🎄 **Finale** — the season climax with a big 3D event.
+
+As the season progresses the whole island decorates up (fairy lights, a tree topper, then reindeer appear), and it ends with a **sleigh finale**. Progress is live-synced across devices just like the rest of the game.
+
+### Switching the season date
+
+The calendar season start is a single constant, currently set to **7 Nov** for a test run this month. For the real season, change one line in `src/data/advent.ts`:
+
+```ts
+export const ADVENT_START = '2026-12-01'; // Dec 1 -> Dec 24
+```
+
+Box-opening progress is keyed to this "session" (the start date). Changing it automatically **resets** every player's opened boxes, cosmetics and daily events for the new season — no other code needs to change.

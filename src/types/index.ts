@@ -32,10 +32,24 @@ export interface PlayerProfile {
       raceLockedPoints?: number;
       /** True once the day's race ranking has been finalised. */
       raceLocked?: boolean;
+      /** True if this player was the one to collect the day's advent golden treasure. */
+      adventTreasureFound?: boolean;
+      /** Best time (ms) for the day's advent collect-challenge, if played. */
+      adventChallengeTimeMs?: number;
+      /** Points earned from the day's advent challenge ranking. */
+      adventChallengePoints?: number;
       completedGames: GameType[];
       totalDayScore: number;
     };
   };
+  /** Advent calendar: 24-bit bitfield of opened boxes (bit n-1 = door n). */
+  adventOpened?: number;
+  /** Advent session id (= calendar start date); a change auto-resets opened state. */
+  adventSession?: string;
+  /** Advent: 6-bit bitfield of unlocked cosmetics (bit i = ADVENT_COSMETICS[i]). */
+  adventUnlocked?: number;
+  /** Advent: cosmetic id currently worn ('' = none). Personal choice, not merge-synced. */
+  adventCosmetic?: string;
 }
 
 export interface PlayerScoreStats {

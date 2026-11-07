@@ -1,6 +1,7 @@
 import { AVATAR_ROSTER, DEFAULT_FAMILY_MEMBERS } from '../data/avatars';
 import { BulletinMessage, GameType, PlayerProfile, PlayerScoreStats } from '../types';
 import { getTodayDateKey, getYesterdayDateKey } from '../utils/dailyClock';
+import { ADVENT_START, getDoor, adventDayFor, ADVENT_COSMETICS, AdventDoor } from '../data/advent';
 
 const STORAGE_KEY = 'henry_island_family_data_v1';
 const ACTIVE_PLAYER_KEY = 'henry_island_active_player_id';
@@ -12,6 +13,15 @@ const DELETED_KEY = 'henry_island_deleted_players_v1';
 // old broadcasts — without a tombstone a removed player would come back).
 const TOMBSTONE_SYNC_WINDOW = 30 * 24 * 3600 * 1000;
 const TOMBSTONE_MAX = 50;
+
+export interface AdventOpenResult {
+  ok: boolean;
+  already?: boolean;
+  door?: AdventDoor;
+  grantedPoints: number;
+  unlockedCosmetic?: string;
+  message: string;
+}
 
 export interface RaceLeaderboardEntry {
   rank: number;
@@ -152,8 +162,22 @@ class FamilyStore {
       console.warn('Failed to load bulletin messages:', e);
     }
 
+    // Reset advent state for any player on a stale calendar session.
+    let adventChanged = false;
+    for (const p of this.players) {
+      if (p.adventSession !== ADVENT_START) {
+        p.adventSession = ADVENT_START;
+        p.adventOpened = 0;
+        p.adventUnlocked = 0;
+        p.adventCosmetic = '';
+        adventChanged = true;
+      }
+    }
+
     // Prune ghost players accumulated by duplicate cross-device adds
     this.pruneGhostPlayers();
+
+    if (adventChanged) this.save();
 
     // Default sample holiday welcome message if empty
     if (this.messages.length === 0) {
@@ -492,15 +516,23 @@ class FamilyStore {
       return false; // Already played today
     }
 
-    dayRecord.completedGames.push(gameType);
-    dayRecord.totalDayScore += score;
-    player.totalScore = (player.totalScore || 0) + score;
+    // Advent variant day: the day's door multiplies this game's payout.
+    let finalScore = score;
+    const advDay = adventDayFor(dateKey);
+    const advDoor = advDay > 0 ? getDoor(advDay) : undefined;
+    if (advDoor && advDoor.type === 'variant' && advDoor.variantGame === gameType && advDoor.variantMult) {
+      finalScore = score * advDoor.variantMult;
+    }
 
-    if (gameType === 'wordle') dayRecord.wordleScore = score;
-    if (gameType === 'lake') dayRecord.lakeScore = score;
-    if (gameType === 'quiz') dayRecord.quizScore = score;
-    if (gameType === 'wordLadder') dayRecord.wordLadderScore = score;
-    if (gameType === 'target24') dayRecord.target24Score = score;
+    dayRecord.completedGames.push(gameType);
+    dayRecord.totalDayScore += finalScore;
+    player.totalScore = (player.totalScore || 0) + finalScore;
+
+    if (gameType === 'wordle') dayRecord.wordleScore = finalScore;
+    if (gameType === 'lake') dayRecord.lakeScore = finalScore;
+    if (gameType === 'quiz') dayRecord.quizScore = finalScore;
+    if (gameType === 'wordLadder') dayRecord.wordLadderScore = finalScore;
+    if (gameType === 'target24') dayRecord.target24Score = finalScore;
 
     // Update streak logic
     if (player.lastPlayedDate !== dateKey) {
@@ -708,6 +740,202 @@ class FamilyStore {
     return { newlyFound: true, completedAll, pointsAwarded };
   }
 
+  // --- Advent Calendar (24 doors, date-driven, shared by the family) ---
+
+  /** The calendar's session id (its start date). Changing it resets everyone. */
+  public adventSessionId(): string {
+    return ADVENT_START;
+  }
+
+  /** Reset a player's advent state if the calendar session changed (e.g. Nov test -> Dec). */
+  private adventResetIfNewSession(p: PlayerProfile | undefined): void {
+    if (!p) return;
+    if (p.adventSession !== ADVENT_START) {
+      p.adventSession = ADVENT_START;
+      p.adventOpened = 0;
+      p.adventUnlocked = 0;
+      p.adventCosmetic = '';
+    }
+  }
+
+  public getAdventOpened(playerId: string): number {
+    const p = this.players.find(x => x.id === playerId);
+    this.adventResetIfNewSession(p);
+    return p?.adventOpened || 0;
+  }
+
+  public getAdventUnlocked(playerId: string): number {
+    const p = this.players.find(x => x.id === playerId);
+    this.adventResetIfNewSession(p);
+    return p?.adventUnlocked || 0;
+  }
+
+  public hasOpenedAdventDoor(playerId: string, day: number): boolean {
+    const p = this.players.find(x => x.id === playerId);
+    this.adventResetIfNewSession(p);
+    return !!(p && p.adventOpened && ((p.adventOpened >> (day - 1)) & 1));
+  }
+
+  public getWornAdventCosmetic(playerId: string): string {
+    const p = this.players.find(x => x.id === playerId);
+    this.adventResetIfNewSession(p);
+    return p?.adventCosmetic || '';
+  }
+
+  /** Equip an owned cosmetic (or '' to take it off). Personal choice, not merge-synced. */
+  public setAdventCosmetic(playerId: string, cosmeticId: string): boolean {
+    const p = this.players.find(x => x.id === playerId);
+    if (!p) return false;
+    this.adventResetIfNewSession(p);
+    if (cosmeticId && !ADVENT_COSMETICS.some((c, i) => c.id === cosmeticId && ((p.adventUnlocked || 0) >> i & 1))) {
+      return false; // not owned
+    }
+    p.adventCosmetic = cosmeticId || '';
+    this.notify();
+    return true;
+  }
+
+  /**
+   * Open an advent box for a player. Doors that have already arrived (current
+   * day or missed earlier days) can be opened; each door opens once.
+   * Bonus/finale doors grant points on opening; cosmetic doors unlock a
+   * wearable; treasure/challenge doors pay out when the event is completed.
+   */
+  public openAdventDoor(playerId: string, day: number, dateKey = getTodayDateKey()): AdventOpenResult {
+    const p = this.players.find(x => x.id === playerId);
+    if (!p) return { ok: false, grantedPoints: 0, message: 'No such player' };
+    this.adventResetIfNewSession(p);
+
+    const door = getDoor(day);
+    if (!door) return { ok: false, grantedPoints: 0, message: 'No such door' };
+
+    // Only doors whose date has arrived (day <= the door for this date) may open.
+    const arrived = adventDayFor(dateKey);
+    if (arrived > 0 && day > arrived) {
+      return { ok: false, grantedPoints: 0, message: 'That door has not opened yet.' };
+    }
+    if (this.hasOpenedAdventDoor(playerId, day)) {
+      return { ok: false, already: true, door, grantedPoints: 0, message: 'You already opened this box.' };
+    }
+
+    if (!p.history) p.history = {};
+    if (!p.history[dateKey]) p.history[dateKey] = { completedGames: [], totalDayScore: 0 };
+
+    let granted = 0;
+    let unlocked: string | undefined;
+
+    p.adventOpened = (p.adventOpened || 0) | (1 << (day - 1));
+
+    if (door.type === 'cosmetic' && door.cosmeticId) {
+      const idx = ADVENT_COSMETICS.findIndex(c => c.id === door.cosmeticId);
+      if (idx >= 0) p.adventUnlocked = (p.adventUnlocked || 0) | (1 << idx);
+      p.adventCosmetic = door.cosmeticId; // auto-wear the new look
+      unlocked = door.cosmeticId;
+    } else if (door.type === 'bonus' || door.type === 'finale') {
+      granted = door.points || 0;
+      if (granted > 0) this.addAdventPoints(p, dateKey, granted);
+    }
+    // treasure / challenge: reward granted when the event is completed.
+
+    this.notify();
+    return {
+      ok: true,
+      door,
+      grantedPoints: granted,
+      unlockedCosmetic: unlocked,
+      message: door.type === 'cosmetic' ? `Unlocked: ${door.title}!` : granted > 0 ? `+${granted} points!` : `${door.title} is open!`
+    };
+  }
+
+  private addAdventPoints(p: PlayerProfile, dateKey: string, amount: number): void {
+    if (amount <= 0) return;
+    if (!p.history) p.history = {};
+    if (!p.history[dateKey]) p.history[dateKey] = { completedGames: [], totalDayScore: 0 };
+    const d = p.history[dateKey];
+    d.totalDayScore = (d.totalDayScore || 0) + amount;
+    p.totalScore = (p.totalScore || 0) + amount;
+  }
+
+  /** Family finale bonus: grant to every player only if the whole family opened the door. */
+  public applyAdventFamilyBonus(dateKey = getTodayDateKey()): number {
+    const arrived = adventDayFor(dateKey);
+    if (arrived <= 0) return 0;
+    const door = getDoor(arrived);
+    if (!door || door.type !== 'finale') return 0;
+    const allOpened = this.players.every(p => this.hasOpenedAdventDoor(p.id, arrived));
+    if (!allOpened) return 0;
+    let granted = 0;
+    for (const p of this.players) {
+      this.addAdventPoints(p, dateKey, door.points || 0);
+      granted = door.points || 0;
+    }
+    if (granted > 0) this.notify();
+    return granted;
+  }
+
+  /** Record the day's golden treasure being collected. Single family taker. */
+  public recordAdventTreasure(playerId: string, points: number, dateKey = getTodayDateKey()): { found: boolean; awarded: number } {
+    const p = this.players.find(x => x.id === playerId);
+    if (!p) return { found: false, awarded: 0 };
+    this.adventResetIfNewSession(p);
+    if (!p.history) p.history = {};
+    if (!p.history[dateKey]) p.history[dateKey] = { completedGames: [], totalDayScore: 0 };
+    const d = p.history[dateKey];
+    if (d.adventTreasureFound) return { found: true, awarded: 0 };
+    // Single taker: if another player already got it, no reward.
+    const alreadyTaken = this.players.some(x => x.id !== p.id && x.history?.[dateKey]?.adventTreasureFound);
+    d.adventTreasureFound = true;
+    let awarded = 0;
+    if (!alreadyTaken && points > 0) {
+      this.addAdventPoints(p, dateKey, points);
+      awarded = points;
+    }
+    this.notify();
+    return { found: true, awarded };
+  }
+
+  public getAdventTreasureTaker(dateKey = getTodayDateKey()): PlayerProfile | undefined {
+    return this.players.find(x => x.history?.[dateKey]?.adventTreasureFound);
+  }
+
+  /** Best challenge time + rank-based points for a player on a given date. */
+  public recordAdventChallenge(playerId: string, timeMs: number, basePoints: number, dateKey = getTodayDateKey()): { best: boolean; points: number } {
+    const p = this.players.find(x => x.id === playerId);
+    if (!p) return { best: false, points: 0 };
+    this.adventResetIfNewSession(p);
+    if (!p.history) p.history = {};
+    if (!p.history[dateKey]) p.history[dateKey] = { completedGames: [], totalDayScore: 0 };
+    const d = p.history[dateKey];
+    const isBest = d.adventChallengeTimeMs === undefined || timeMs < d.adventChallengeTimeMs;
+    if (isBest) d.adventChallengeTimeMs = timeMs;
+
+    // Rank by best times among players who finished that day.
+    const racers = this.players
+      .filter(x => x.history?.[dateKey]?.adventChallengeTimeMs !== undefined)
+      .sort((a, b) => (a.history[dateKey].adventChallengeTimeMs! - b.history[dateKey].adventChallengeTimeMs!));
+    const rank = racers.findIndex(x => x.id === p.id) + 1;
+    const table = [15, 12, 10, 8, 5, 3];
+    const pts = rank > 0 ? (table[rank - 1] ?? 0) : 0;
+    // Award the max of ranked points and the flat completion bonus, but only once.
+    const award = Math.max(pts, basePoints || 0);
+    const prev = d.adventChallengePoints || 0;
+    if (award > prev) {
+      d.adventChallengePoints = award;
+      const diff = award - prev;
+      this.addAdventPoints(p, dateKey, diff);
+    }
+    this.notify();
+    return { best: isBest, points: award };
+  }
+
+  public getAdventChallengeLeaderboard(dateKey = getTodayDateKey()) {
+    return this.players
+      .filter(p => p.history?.[dateKey]?.adventChallengeTimeMs !== undefined)
+      .map(p => ({ player: p, timeMs: p.history[dateKey].adventChallengeTimeMs!, points: p.history[dateKey].adventChallengePoints || 0 }))
+      .sort((a, b) => a.timeMs - b.timeMs)
+      .map((e, i) => ({ ...e, rank: i + 1 }));
+  }
+
   // --- Bulletin Board / Message Board ---
 
   public getMessages(): BulletinMessage[] {
@@ -792,6 +1020,30 @@ class FamilyStore {
             changed = true;
           }
 
+          // Advent calendar: a box, once opened, stays opened everywhere. If the
+          // calendar session rolled over, start fresh before OR-merging.
+          if (remoteP.adventSession && remoteP.adventSession !== localP.adventSession) {
+            localP.adventSession = remoteP.adventSession;
+            localP.adventOpened = 0;
+            localP.adventUnlocked = 0;
+            localP.adventCosmetic = '';
+            changed = true;
+          }
+          if ((remoteP.adventOpened || 0) !== 0) {
+            const mo = (localP.adventOpened || 0) | (remoteP.adventOpened || 0);
+            if (mo !== (localP.adventOpened || 0)) { localP.adventOpened = mo; changed = true; }
+          }
+          if ((remoteP.adventUnlocked || 0) !== 0) {
+            const mu = (localP.adventUnlocked || 0) | (remoteP.adventUnlocked || 0);
+            if (mu !== (localP.adventUnlocked || 0)) { localP.adventUnlocked = mu; changed = true; }
+          }
+          // Worn cosmetic: adopt the remote look when it is set (equipings
+          // propagate; an empty remote value is ignored so unequips stay local).
+          if (remoteP.adventCosmetic && remoteP.adventCosmetic !== (localP.adventCosmetic || '')) {
+            localP.adventCosmetic = remoteP.adventCosmetic;
+            changed = true;
+          }
+
           // Deep merge history
           if (remoteP.history) {
             if (!localP.history) localP.history = {};
@@ -865,6 +1117,19 @@ class FamilyStore {
                 }
                 if (remoteDay.raceLocked && !localDay.raceLocked) {
                   localDay.raceLocked = true;
+                  changed = true;
+                }
+                // Advent daily events: treasure OR, challenge time MIN, points MAX.
+                if (remoteDay.adventTreasureFound && !localDay.adventTreasureFound) {
+                  localDay.adventTreasureFound = true;
+                  changed = true;
+                }
+                if (remoteDay.adventChallengeTimeMs !== undefined && (localDay.adventChallengeTimeMs === undefined || remoteDay.adventChallengeTimeMs < localDay.adventChallengeTimeMs)) {
+                  localDay.adventChallengeTimeMs = remoteDay.adventChallengeTimeMs;
+                  changed = true;
+                }
+                if (remoteDay.adventChallengePoints !== undefined && (localDay.adventChallengePoints === undefined || remoteDay.adventChallengePoints > localDay.adventChallengePoints)) {
+                  localDay.adventChallengePoints = remoteDay.adventChallengePoints;
                   changed = true;
                 }
               }
