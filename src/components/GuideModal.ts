@@ -88,7 +88,7 @@ export class GuideModal {
   private adventSummary(): string {
     const adventDay = currentAdventDay();
     return adventDay > 0
-      ? `For ${ADVENT_DAYS} days, one gift box opens each day! Today is <strong>Day ${adventDay}</strong>. Open it from the <strong>Advent</strong> button (or the glowing box wall by the tree) to reveal the surprise: Santa's letters, new wardrobe looks, bonus points, golden treasures, family challenges, special game variants & a big finale. Each box opens once per person — and only the <strong>first</strong> to grab a golden treasure or finish a challenge wins!`
+      ? `For ${ADVENT_DAYS} days, one gift box opens each day! Today is <strong>Day ${adventDay}</strong>. Open it from the <strong>Advent</strong> button (or the glowing gift wall in the south meadow, in front of Santas village) to reveal the surprise: Santa's letters, new wardrobe looks, bonus points, golden treasures, family challenges, special game variants & a big finale. Each box opens once per person — and only the <strong>first</strong> to grab a golden treasure or finish a challenge wins!`
       : `Opens on <strong>${ADVENT_START}</strong>: ${ADVENT_DAYS} days of daily gift boxes — Santa's letters, wardrobe looks, bonus points, golden treasures, family challenges, game variants and a sleigh finale!`;
   }
 

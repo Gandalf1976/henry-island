@@ -27,6 +27,7 @@ class App {
   private world: IslandWorld3D;
   private modalHost: HTMLElement;
   private activeGameInstance: WordleGame | LakeGame | QuizGame | WordLadderGame | Target24Game | null = null;
+  private raceModal: RaceResultsModal | null = null;
   private lastDayKey: string;
 
   constructor() {
@@ -233,8 +234,12 @@ class App {
     const isPersonalBest = rec?.raceTimeMs === undefined || timeMs < rec.raceTimeMs;
     if (isPersonalBest) {
       familyStore.recordRaceTime(activePlayer.id, timeMs);
+      // Broadcast immediately so every device's race board re-ranks in real
+      // time — otherwise a family member's finish only reaches the others on
+      // the 5-minute heartbeat and the points don't reflect true positions.
+      liveSyncManager.broadcastState('score_update', `⛵ ${activePlayer.name} just finished the Boat Race!`);
     }
-    new RaceResultsModal(
+    this.raceModal = new RaceResultsModal(
       this.modalHost,
       timeMs,
       isPersonalBest,
@@ -423,6 +428,10 @@ class App {
     if (this.activeGameInstance) {
       this.activeGameInstance.destroy();
       this.activeGameInstance = null;
+    }
+    if (this.raceModal) {
+      this.raceModal.destroy();
+      this.raceModal = null;
     }
     this.modalHost.innerHTML = '';
   }

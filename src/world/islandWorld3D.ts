@@ -1546,8 +1546,12 @@ export class IslandWorld3D {
     const day = currentAdventDay();
 
     this.adventWallGroup = buildGiftBoxWall(familyStore.getAdventOpened(active.id), day);
-    this.adventWallHome.set(0, 1.8, -20);
+    // South of the island, in a clear meadow east of the main path and in
+    // front of Santas village - visible from the plaza/camera. Boxes face
+    // north (toward the approach) so the family reads the day numbers.
+    this.adventWallHome.set(9, 1.8, 26);
     this.adventWallGroup.position.copy(this.adventWallHome);
+    this.adventWallGroup.rotation.y = Math.PI;
     this.scene.add(this.adventWallGroup);
 
     this.adventDecorGroup = buildAdventDecorations(day);
@@ -1574,6 +1578,7 @@ export class IslandWorld3D {
         this.scene.remove(this.adventWallGroup);
         this.adventWallGroup = buildGiftBoxWall(opened, day);
         this.adventWallGroup.position.copy(this.adventWallHome);
+        this.adventWallGroup.rotation.y = Math.PI;
         this.scene.add(this.adventWallGroup);
       }
       if (this.adventDecorGroup) {
@@ -1594,7 +1599,8 @@ export class IslandWorld3D {
     if (isFinale) {
       if (!this.adventFinaleGroup) {
         this.adventFinaleGroup = buildSleighFinale();
-        this.adventFinaleGroup.position.set(0, 1.8, 30);
+        // Land in the south clearing, west of the gift wall, in front of Santa.
+        this.adventFinaleGroup.position.set(-6, 1.8, 33);
         this.scene.add(this.adventFinaleGroup);
       }
     } else if (this.adventFinaleGroup) {
@@ -3533,9 +3539,9 @@ export class IslandWorld3D {
       },
       {
         id: 'advent',
-        pos: new THREE.Vector3(0, 1.8, -16),
+        pos: new THREE.Vector3(9, 1.8, 26),
         radius: 7,
-        title: 'â',
+        title: '🎁',
         actionText: 'Open the Advent Calendar'
       }
     ];

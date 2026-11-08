@@ -91,7 +91,7 @@ The **Boat Race is repeatable** — sail it as many times as you like; your best
 
 ## 🎁 Advent Calendar
 
-A 24-door advent calendar — one gift box opens each day for a full 24-day season. Walk to the glowing **wall of gift boxes** by the tree, or tap the **Advent** button, to open the day. Each player opens their own boxes, and every box opens **once per person per season** — a synced 24-bit "opened" flag keeps it consistent across the whole family.
+A 24-door advent calendar — one gift box opens each day for a full 24-day season. Walk to the glowing **wall of gift boxes** in the south meadow (in front of Santas village), or tap the **Advent** button, to open the day. Each player opens their own boxes, and every box opens **once per person per season** — a synced 24-bit "opened" flag keeps it consistent across the whole family.
 
 Each door holds one of six kinds of surprise:
 

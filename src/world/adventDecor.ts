@@ -112,7 +112,7 @@ export function buildAdventDecorations(day: number): THREE.Group {
       new THREE.OctahedronGeometry(1.4, 0),
       new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xfacc15, emissiveIntensity: 0.6 })
     );
-    star.position.set(0, 16, 42);
+    star.position.set(9, 11, 24);
     group.add(star);
   }
   if (day >= 10) {
@@ -126,7 +126,7 @@ export function buildAdventDecorations(day: number): THREE.Group {
       leg.position.set(s * 0.7, 0.6, 0);
       reindeer.add(leg);
     }
-    reindeer.position.set(10, 1.8, 40);
+    reindeer.position.set(18, 1.8, 30);
     group.add(reindeer);
   }
 

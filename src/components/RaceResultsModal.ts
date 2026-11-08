@@ -4,13 +4,17 @@ import { soundAudio } from '../utils/audio';
 
 /**
  * Post-race results screen: your millisecond time, the live daily
- * leaderboard (re-ranks as family members set faster times — points lock
- * at midnight), and a quick way to race again.
+ * leaderboard (re-ranks in real time as family members' finishes sync in —
+ * points lock at midnight), and a quick way to race again.
  */
 export class RaceResultsModal {
   private container: HTMLElement;
   private onCloseCallback: () => void;
   private onRaceAgainCallback: () => void;
+  private timeMs: number;
+  private isPersonalBest: boolean;
+  private unsub: (() => void) | null = null;
+  private destroyed = false;
 
   constructor(
     container: HTMLElement,
@@ -22,10 +26,25 @@ export class RaceResultsModal {
     this.container = container;
     this.onCloseCallback = onClose;
     this.onRaceAgainCallback = onRaceAgain;
-    this.render(timeMs, isPersonalBest);
+    this.timeMs = timeMs;
+    this.isPersonalBest = isPersonalBest;
+    this.render();
+    // Live re-ranking: as other family members' finishes sync in, the board
+    // (and your points) update in real time until the day locks at midnight.
+    this.unsub = familyStore.subscribe(() => {
+      if (!this.destroyed && this.container.isConnected) this.render();
+    });
   }
 
-  private render(timeMs: number, isPersonalBest: boolean): void {
+  public destroy(): void {
+    this.destroyed = true;
+    if (this.unsub) {
+      this.unsub();
+      this.unsub = null;
+    }
+  }
+
+  private render(): void {
     const board: RaceLeaderboardEntry[] = familyStore.getRaceLeaderboard();
     const activePlayer = familyStore.getActivePlayer();
     const myEntry = board.find(e => e.player.id === activePlayer.id);
@@ -42,11 +61,11 @@ export class RaceResultsModal {
 
           <div class="my-2 bg-slate-950/70 border-2 border-sky-500/60 rounded-2xl px-6 py-3 text-center">
             <div class="text-[11px] uppercase tracking-wider text-sky-300 font-bold">Your Time</div>
-            <div class="text-3xl sm:text-4xl font-black font-mono text-amber-300">${formatRaceTime(timeMs)}</div>
+            <div class="text-3xl sm:text-4xl font-black font-mono text-amber-300">${formatRaceTime(this.timeMs)}</div>
             <div class="mt-1 flex items-center justify-center gap-2 text-xs font-bold">
               <span class="text-sky-200">Position: ${myRank}</span>
               <span class="text-emerald-300">+${myEntry?.points ?? 0} pts</span>
-              ${isPersonalBest ? '<span class="text-amber-300 animate-pulse">★ NEW PERSONAL BEST!</span>' : ''}
+              ${this.isPersonalBest ? '<span class="text-amber-300 animate-pulse">★ NEW PERSONAL BEST!</span>' : ''}
             </div>
           </div>
 
@@ -91,7 +110,7 @@ export class RaceResultsModal {
             <button id="race-again-btn" class="flex-1 py-3 bg-gradient-to-r from-sky-400 to-blue-500 hover:brightness-110 font-black text-slate-950 rounded-xl shadow-lg transition">
               🏁 Race Again
             </button>
-            <button id="race-return-btn" class="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 font-black text-white rounded-xl shadow-lg transition">
+            <button id="race-return-btn" class="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-black rounded-xl shadow-lg transition">
               Return to Island 🏝️
             </button>
           </div>
