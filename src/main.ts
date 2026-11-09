@@ -23,6 +23,11 @@ import { getTodayDateKey, getYesterdayDateKey } from './utils/dailyClock';
 import { liveSyncManager } from './utils/liveSync';
 import { IslandWorld3D } from './world/islandWorld3D';
 
+// Build tag: changes the bundle content on each deploy so Vite emits a fresh
+// asset hash — device caches holding a stale index.html can't 404 on a
+// replaced asset and get the new island immediately.
+(window as { __HENRY_BUILD__?: string }).__HENRY_BUILD__ = '2026-11-09-1';
+
 class App {
   private world: IslandWorld3D;
   private modalHost: HTMLElement;
