@@ -6,6 +6,7 @@ import { playSound } from '../utils/audio';
 export class DevicePlayerSelectModal {
   private overlay: HTMLElement | null = null;
   private onSelectCallback?: () => void;
+  private unsubscribe?: () => void;
 
   constructor(onSelect?: () => void) {
     this.onSelectCallback = onSelect;
@@ -18,11 +19,8 @@ export class DevicePlayerSelectModal {
     }
 
     if (this.overlay) {
-      this.overlay.remove();
+      this.close();
     }
-
-    const players = familyStore.getPlayers();
-    const activeId = familyStore.getActivePlayer().id;
 
     const modal = document.createElement('div');
     modal.id = 'device-player-modal';
@@ -46,37 +44,7 @@ export class DevicePlayerSelectModal {
         </div>
 
         <div class="flex-1 overflow-y-auto space-y-3 pr-1 mb-4" id="player-roster-list">
-          ${players.map(p => {
-            const avatar = AVATAR_ROSTER.find(a => a.id === p.avatarId) || AVATAR_ROSTER[0];
-            const stats = familyStore.getPlayerScoreStats(p);
-            const isCurrent = p.id === activeId;
-
-            return `
-              <button data-player-id="${p.id}" class="player-pick-card w-full flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border-2 transition-all duration-200 text-left ${
-                isCurrent 
-                  ? 'border-amber-400 bg-amber-500/20 shadow-lg shadow-amber-500/10' 
-                  : 'border-slate-700/80 bg-slate-800/60 hover:border-slate-500 hover:bg-slate-800'
-              }">
-                <div class="flex items-center space-x-3 sm:space-x-4">
-                  <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl border border-white/20 shadow-inner" style="background-color: ${avatar.color}">
-                    ${avatar.emoji}
-                  </div>
-                  <div>
-                    <div class="font-bold text-base sm:text-lg text-white flex items-center space-x-2">
-                      <span>${p.name}</span>
-                      ${isCurrent ? '<span class="text-[10px] bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase">Selected</span>' : ''}
-                    </div>
-                    <div class="text-xs text-slate-400">
-                      Avg: <span class="text-emerald-400 font-bold">${stats.averageScore} pts/day</span> • Total: ${stats.cumulativeScore} pts
-                    </div>
-                  </div>
-                </div>
-                <div class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-slate-950 transition-colors">
-                  Play as ${p.name} →
-                </div>
-              </button>
-            `;
-          }).join('')}
+          <!-- Populated by renderRosterList -->
         </div>
 
         <!-- Add New Player Section -->
@@ -92,16 +60,12 @@ export class DevicePlayerSelectModal {
     document.body.appendChild(modal);
     this.overlay = modal;
 
-    // Attach listeners
-    modal.querySelectorAll('.player-pick-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const pId = card.getAttribute('data-player-id');
-        if (pId) {
-          familyStore.lockDeviceToPlayer(pId);
-          playSound('victory');
-          this.close();
-        }
-      });
+    // Render roster and re-render dynamically if remote sync updates players
+    this.renderRosterList();
+    this.unsubscribe = familyStore.subscribe(() => {
+      if (this.overlay && this.overlay.isConnected) {
+        this.renderRosterList();
+      }
     });
 
     const addBtn = modal.querySelector('#add-player-btn');
@@ -110,7 +74,16 @@ export class DevicePlayerSelectModal {
     const handleAdd = () => {
       const name = newNameInput?.value.trim();
       if (name) {
-        // pick a random avatar from roster
+        // If player already exists with this name (case-insensitive), select them instead of duplicating
+        const existing = familyStore.getPlayers().find(p => p.name.trim().toLowerCase() === name.toLowerCase());
+        if (existing) {
+          familyStore.lockDeviceToPlayer(existing.id);
+          playSound('victory');
+          this.close();
+          return;
+        }
+
+        // Otherwise create new player and lock
         const randomAvatar = AVATAR_ROSTER[Math.floor(Math.random() * AVATAR_ROSTER.length)].id;
         const newPlayer = familyStore.addPlayer(name, randomAvatar);
         familyStore.lockDeviceToPlayer(newPlayer.id);
@@ -129,7 +102,64 @@ export class DevicePlayerSelectModal {
     closeBtn?.addEventListener('click', () => this.close());
   }
 
+  private renderRosterList(): void {
+    if (!this.overlay) return;
+    const rosterListEl = this.overlay.querySelector('#player-roster-list');
+    if (!rosterListEl) return;
+
+    const players = familyStore.getPlayers();
+    const activeId = familyStore.getActivePlayer().id;
+
+    rosterListEl.innerHTML = players.map(p => {
+      const avatar = AVATAR_ROSTER.find(a => a.id === p.avatarId) || AVATAR_ROSTER[0];
+      const stats = familyStore.getPlayerScoreStats(p);
+      const isCurrent = p.id === activeId;
+
+      return `
+        <button data-player-id="${p.id}" class="player-pick-card w-full flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border-2 transition-all duration-200 text-left ${
+          isCurrent 
+            ? 'border-amber-400 bg-amber-500/20 shadow-lg shadow-amber-500/10' 
+            : 'border-slate-700/80 bg-slate-800/60 hover:border-slate-500 hover:bg-slate-800'
+        }">
+          <div class="flex items-center space-x-3 sm:space-x-4">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl border border-white/20 shadow-inner" style="background-color: ${avatar.color}">
+              ${avatar.emoji}
+            </div>
+            <div>
+              <div class="font-bold text-base sm:text-lg text-white flex items-center space-x-2">
+                <span>${p.name}</span>
+                ${isCurrent ? '<span class="text-[10px] bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase">Selected</span>' : ''}
+              </div>
+              <div class="text-xs text-slate-400">
+                Avg: <span class="text-emerald-400 font-bold">${stats.averageScore} pts/day</span> • Total: ${stats.cumulativeScore} pts
+              </div>
+            </div>
+          </div>
+          <div class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/10 hover:bg-amber-400 hover:text-slate-950 transition-colors">
+            Play as ${p.name} →
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    // Reattach card click listeners
+    rosterListEl.querySelectorAll('.player-pick-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const pId = card.getAttribute('data-player-id');
+        if (pId) {
+          familyStore.lockDeviceToPlayer(pId);
+          playSound('victory');
+          this.close();
+        }
+      });
+    });
+  }
+
   public close(): void {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = undefined;
+    }
     if (this.overlay) {
       this.overlay.remove();
       this.overlay = null;

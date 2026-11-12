@@ -1,6 +1,6 @@
 import { AVATAR_ROSTER, DEFAULT_FAMILY_MEMBERS } from '../data/avatars';
 import { BulletinMessage, GameType, PlayerProfile, PlayerScoreStats } from '../types';
-import { getTodayDateKey, getYesterdayDateKey } from '../utils/dailyClock';
+import { getTodayDateKey, getYesterdayDateKey, isRaceClosedForDate } from '../utils/dailyClock';
 import { ADVENT_START, getDoor, adventDayFor, ADVENT_COSMETICS, AdventDoor } from '../data/advent';
 
 const STORAGE_KEY = 'henry_island_family_data_v1';
@@ -48,6 +48,8 @@ export interface DailyParticipantResult {
   wordLadderScore?: number;
   target24Score?: number;
   scavengerScore?: number;
+  raceScore?: number;
+  raceTimeMs?: number;
 }
 
 export interface PreviousDayRankingResult {
@@ -261,9 +263,18 @@ class FamilyStore {
   }
 
   public addPlayer(name: string, avatarId: string): PlayerProfile {
+    const trimmed = name.trim();
+    // Return existing profile if player with this exact name already exists
+    const existing = this.players.find(p => p.name.trim().toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      this.activePlayerId = existing.id;
+      this.notify();
+      return existing;
+    }
+
     const newPlayer: PlayerProfile = {
-      id: 'player_' + Date.now(),
-      name: name.trim() || 'New Islander',
+      id: 'player_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+      name: trimmed || 'New Islander',
       avatarId: AVATAR_ROSTER.some(a => a.id === avatarId) ? avatarId : AVATAR_ROSTER[0].id,
       totalScore: 0,
       streak: 0,
@@ -423,6 +434,9 @@ class FamilyStore {
   public getPreviousDayRanking(targetDateKey?: string): PreviousDayRankingResult {
     const dateKey = targetDateKey || getYesterdayDateKey(getTodayDateKey());
     
+    // Ensure race scores for the date are locked and points computed
+    this.lockRaceScoresForDate(dateKey);
+
     let dateFormatted = dateKey;
     try {
       const [y, m, d] = dateKey.split('-').map(Number);
@@ -440,28 +454,37 @@ class FamilyStore {
 
     for (const player of this.players) {
       const rec = player.history?.[dateKey];
-      if (rec && ((rec.completedGames && rec.completedGames.length > 0) || (rec.totalDayScore || 0) > 0)) {
+      const racePts = this.getPlayerRacePoints(player.id, dateKey);
+      const totalDayScore = (rec?.totalDayScore || 0) + racePts;
+      const hasGames = rec?.completedGames && rec.completedGames.length > 0;
+      const hasRace = rec?.raceTimeMs !== undefined;
+
+      if (rec && (hasGames || totalDayScore > 0 || hasRace)) {
         participants.push({
           player,
-          totalDayScore: rec.totalDayScore || 0,
+          totalDayScore,
           completedGames: rec.completedGames || [],
           wordleScore: rec.wordleScore,
           lakeScore: rec.lakeScore,
           quizScore: rec.quizScore,
           wordLadderScore: rec.wordLadderScore,
           target24Score: rec.target24Score,
-          scavengerScore: rec.scavengerScore
+          scavengerScore: rec.scavengerScore,
+          raceScore: racePts > 0 ? racePts : undefined,
+          raceTimeMs: rec.raceTimeMs
         });
       }
     }
 
-    // Sort descending by totalDayScore, then by completedGames count, then player name
+    // Sort descending by totalDayScore, then by total completed activities, then player name
     participants.sort((a, b) => {
       if (b.totalDayScore !== a.totalDayScore) {
         return b.totalDayScore - a.totalDayScore;
       }
-      if (b.completedGames.length !== a.completedGames.length) {
-        return b.completedGames.length - a.completedGames.length;
+      const aCount = a.completedGames.length + (a.raceTimeMs ? 1 : 0);
+      const bCount = b.completedGames.length + (b.raceTimeMs ? 1 : 0);
+      if (bCount !== aCount) {
+        return bCount - aCount;
       }
       return a.player.name.localeCompare(b.player.name);
     });
@@ -625,6 +648,8 @@ class FamilyStore {
   /**
    * Records a completed race. Only an IMPROVED best time is stored (lower
    * is better); the merge is min-only so personal bests never regress.
+   * If the race is already closed for points (past 21:00 GMT), earlier racers
+   * remain locked and new racers are locked with 0 daily points (practice mode).
    */
   public recordRaceTime(playerId: string, timeMs: number, dateKey: string = getTodayDateKey()): boolean {
     const player = this.players.find(p => p.id === playerId);
@@ -634,19 +659,33 @@ class FamilyStore {
       player.history[dateKey] = { completedGames: [], totalDayScore: 0 };
     }
     const dayRecord = player.history[dateKey];
+
+    const isClosed = isRaceClosedForDate(dateKey);
+    // If race is closed for points for this date, ensure earlier racers are locked
+    if (isClosed) {
+      this.lockRaceScoresForDate(dateKey);
+    }
+
     if (dayRecord.raceTimeMs !== undefined && dayRecord.raceTimeMs <= timeMs) {
       return false; // not a personal best
     }
     dayRecord.raceTimeMs = timeMs;
+
+    // If the race was already closed and this player had not already locked points from before cutoff,
+    // lock them at 0 pts so post-cutoff practice runs don't alter standings
+    if (isClosed && !dayRecord.raceLocked) {
+      dayRecord.raceLocked = true;
+      dayRecord.raceLockedPoints = 0;
+    }
+
     this.notify();
     return true;
   }
 
   /**
-   * Live race points for a player on a date.
-   * - Today: derived from the current daily leaderboard (re-ranks live as
-   *   family members set faster times).
-   * - Past days: the locked points written when the day finalised.
+   * Race points for a player on a date.
+   * - If closed (past day or today >= 21:00 GMT): returns locked points (auto-locks if needed).
+   * - If open (today < 21:00 GMT): derived from the current daily leaderboard (re-ranks live).
    */
   public getPlayerRacePoints(playerId: string, dateKey: string = getTodayDateKey()): number {
     const player = this.players.find(p => p.id === playerId);
@@ -654,30 +693,37 @@ class FamilyStore {
     const rec = player.history?.[dateKey];
     if (!rec || rec.raceTimeMs === undefined) return 0;
     if (rec.raceLocked) return rec.raceLockedPoints ?? 0;
-    if (dateKey !== getTodayDateKey()) return rec.raceLockedPoints ?? 0;
+
+    // If race is closed for this date (e.g. past day or after 21:00 GMT today), lock now
+    if (isRaceClosedForDate(dateKey)) {
+      this.lockRaceScoresForDate(dateKey);
+      return rec.raceLockedPoints ?? 0;
+    }
+
     const entry = this.getRaceLeaderboard(dateKey).find(e => e.player.id === playerId);
     return entry?.points ?? 0;
   }
 
   /**
-   * Midnight finalisation: lock each player's race points for a finished day
-   * (idempotent — skips days already locked). Points then become part of the
-   * stored record and stop re-ranking.
+   * Finalisation (at 21:00 GMT, rollover, or on-demand): lock each player's race points
+   * for a closed race day (idempotent — skips days already locked unless force is true).
+   * Points then become permanent.
    */
-  public lockRaceScoresForDate(dateKey: string): boolean {
+  public lockRaceScoresForDate(dateKey: string, force = false): boolean {
     const racers = this.getRacersForDate(dateKey);
     if (racers.length === 0) return false;
     const board = this.getRaceLeaderboard(dateKey);
     let changed = false;
     for (const racer of racers) {
       const rec = racer.player.history?.[dateKey];
-      if (!rec || rec.raceLocked) continue;
+      if (!rec) continue;
+      if (rec.raceLocked && !force) continue;
       const entry = board.find(e => e.player.id === racer.player.id);
       rec.raceLockedPoints = entry?.points ?? 0;
       rec.raceLocked = true;
       changed = true;
     }
-    if (changed) this.notify();
+    if (changed) this.save();
     return changed;
   }
 
@@ -1139,6 +1185,25 @@ class FamilyStore {
       }
     }
 
+    // Clean up untouched default template placeholders that don't exist remotely
+    if (Array.isArray(remotePlayers) && remotePlayers.length > 0) {
+      const remoteIds = new Set(remotePlayers.map(p => p.id));
+      const lockedId = this.getLockedPlayerId();
+      const beforeCount = this.players.length;
+      this.players = this.players.filter(p => {
+        if (remoteIds.has(p.id)) return true;
+        if (p.id === lockedId) return true;
+        // Keep if it has any activity
+        const hasHistory = p.history && Object.keys(p.history).length > 0;
+        if ((p.totalScore || 0) > 0 || (p.streak || 0) > 0 || hasHistory) return true;
+        // If it's a default template placeholder with 0 activity not present on remote, drop it
+        const isDefaultName = DEFAULT_FAMILY_MEMBERS.some(d => d.name.toLowerCase() === p.name.trim().toLowerCase());
+        if (isDefaultName) return false;
+        return true;
+      });
+      if (this.players.length !== beforeCount) changed = true;
+    }
+
     // 2. Merge messages
     if (Array.isArray(remoteMessages) && remoteMessages.length > 0) {
       for (const rMsg of remoteMessages) {
@@ -1155,6 +1220,13 @@ class FamilyStore {
 
     // 3. Prune ghost players (see pruneGhostPlayers)
     if (this.pruneGhostPlayers()) {
+      changed = true;
+    }
+
+    // 4. Ensure device lock is respected if locked player was just synced in
+    const lockedId = this.getLockedPlayerId();
+    if (lockedId && this.activePlayerId !== lockedId && this.players.some(p => p.id === lockedId)) {
+      this.activePlayerId = lockedId;
       changed = true;
     }
 
@@ -1198,18 +1270,24 @@ class FamilyStore {
       return total;
     };
 
+    const lockedId = this.getLockedPlayerId();
     const remove = new Set<string>();
     for (const group of byName.values()) {
       if (group.length < 2) continue;
       const sorted = [...group].sort((a, b) => {
-        const diff = dataAmount(b) - dataAmount(a);
-        if (diff !== 0) return diff; // keep the one with more data
+        // Never remove this device's locked identity or active player
+        if (a.id === lockedId) return -1;
+        if (b.id === lockedId) return 1;
         if (a.id === this.activePlayerId) return -1;
         if (b.id === this.activePlayerId) return 1;
+        const diff = dataAmount(b) - dataAmount(a);
+        if (diff !== 0) return diff; // keep the one with more data
         return a.id.localeCompare(b.id); // stable: keep the older ID
       });
       for (const p of sorted.slice(1)) {
-        remove.add(p.id);
+        if (p.id !== lockedId && p.id !== this.activePlayerId) {
+          remove.add(p.id);
+        }
       }
     }
 

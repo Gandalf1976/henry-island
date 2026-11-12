@@ -1,11 +1,12 @@
 import { familyStore, RaceLeaderboardEntry } from '../state/familyStore';
+import { getRaceClosingStatus } from '../utils/dailyClock';
 import { formatRaceTime } from '../utils/raceCourse';
 import { soundAudio } from '../utils/audio';
 
 /**
  * Post-race results screen: your millisecond time, the live daily
  * leaderboard (re-ranks in real time as family members' finishes sync in —
- * points lock at midnight), and a quick way to race again.
+ * points lock at 21:00 GMT), and a quick way to race again.
  */
 export class RaceResultsModal {
   private container: HTMLElement;
@@ -49,6 +50,7 @@ export class RaceResultsModal {
     const activePlayer = familyStore.getActivePlayer();
     const myEntry = board.find(e => e.player.id === activePlayer.id);
     const myRank = myEntry?.rank ?? '—';
+    const closing = getRaceClosingStatus();
 
     const medal = (rank: number) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`);
 
@@ -72,7 +74,11 @@ export class RaceResultsModal {
           <div class="w-full my-2">
             <div class="flex justify-between items-center px-1 mb-1.5">
               <h4 class="font-extrabold text-xs uppercase tracking-wider text-sky-300">Today's Race Board</h4>
-              <span class="text-[10px] text-emerald-300 font-bold">Live re-ranking 🟢 (locks at midnight)</span>
+              <span class="text-[10px] ${closing.isClosed ? 'text-amber-300' : 'text-emerald-300'} font-bold">
+                ${closing.isClosed 
+                  ? 'Closed at 21:00 GMT 🔒 (Points locked / Practice mode)' 
+                  : `Live re-ranking 🟢 (Closes at 21:00 GMT • ${closing.timeRemainingFormatted} left)`}
+              </span>
             </div>
 
             <div class="space-y-1.5">
@@ -102,7 +108,7 @@ export class RaceResultsModal {
             </div>
 
             <p class="text-[10px] text-slate-400 mt-2 text-center">
-              Fastest of the day scores 15 pts • 2nd 12 • 3rd 10 • 4th 8 • 5th 5 • 6th 3 • ties share the rank & points.
+              Daily race closes for points at 21:00 GMT. 1st: 15 pts • 2nd: 12 • 3rd: 10 • 4th: 8 • 5th: 5 • 6th: 3 • ties share the rank & points.
             </p>
           </div>
 

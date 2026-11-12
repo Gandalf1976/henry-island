@@ -1,6 +1,7 @@
 import { AVATAR_ROSTER } from '../data/avatars';
 import { DailyParticipantResult, familyStore, PreviousDayRankingResult } from '../state/familyStore';
 import { soundAudio } from '../utils/audio';
+import { formatRaceTime } from '../utils/raceCourse';
 
 export class PreviousDayWinnersModal {
   private container: HTMLElement;
@@ -176,6 +177,11 @@ export class PreviousDayWinnersModal {
                         ${
                           entry.scavengerScore !== undefined
                             ? `<span class="px-1.5 py-0.5 rounded bg-purple-950/80 border border-purple-600/60 text-purple-300 font-semibold">🔍 Hunt: +${entry.scavengerScore}</span>`
+                            : ''
+                        }
+                        ${
+                          entry.raceScore !== undefined
+                            ? `<span class="px-1.5 py-0.5 rounded bg-blue-950/80 border border-blue-600/60 text-blue-300 font-semibold">⛵ Race: +${entry.raceScore}${entry.raceTimeMs ? ` (${formatRaceTime(entry.raceTimeMs)})` : ''}</span>`
                             : ''
                         }
                       </div>

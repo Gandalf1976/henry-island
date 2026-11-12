@@ -302,9 +302,28 @@ class LiveSyncManager {
   private listeners: ((status: { isConnected: boolean; lastSynced: Date | null }) => void)[] = [];
   private isConnected = false;
   private lastSynced: Date | null = null;
+  private initialSyncPromise: Promise<void>;
+  private resolveInitialSync!: () => void;
+  private hasPulledInitialState = false;
 
   constructor() {
     this.deviceId = this.getOrCreateDeviceId();
+    this.initialSyncPromise = new Promise<void>((resolve) => {
+      this.resolveInitialSync = resolve;
+    });
+  }
+
+  /**
+   * Resolves when the initial cloud state poll completes, or when timeoutMs expires.
+   * Prevents UI components (like device player selection) from rendering before
+   * the family roster has been fetched from ntfy.
+   */
+  public async whenReady(timeoutMs = 1500): Promise<void> {
+    if (this.hasPulledInitialState) return;
+    return Promise.race([
+      this.initialSyncPromise,
+      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
+    ]);
   }
 
   private getOrCreateDeviceId(): string {
@@ -445,6 +464,9 @@ class LiveSyncManager {
       this.notifyStatus();
     } catch (e) {
       // offline or network hiccup
+    } finally {
+      this.hasPulledInitialState = true;
+      this.resolveInitialSync();
     }
   }
 

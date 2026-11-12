@@ -70,3 +70,48 @@ export function getTimeUntilMidnight(): { hours: number; minutes: number; second
   const formatted = `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
   return { hours, minutes, seconds, formatted };
 }
+
+/**
+ * Checks if the daily boat race is closed for points on a given dateKey.
+ * Daily Boat Race closes at 21:00 GMT (UTC).
+ * - Past dates: always closed.
+ * - Today's date: closed if current UTC hour is >= 21.
+ * - Future dates: not closed.
+ */
+export function isRaceClosedForDate(dateKey: string, now = new Date()): boolean {
+  const todayKey = getTodayDateKey(now);
+  if (dateKey < todayKey) return true;
+  if (dateKey > todayKey) return false;
+  return now.getUTCHours() >= 21;
+}
+
+/**
+ * Information about today's race closing status (21:00 GMT).
+ */
+export function getRaceClosingStatus(now = new Date()): {
+  isClosed: boolean;
+  closesAtFormatted: string;
+  timeRemainingFormatted: string;
+} {
+  const isClosed = now.getUTCHours() >= 21;
+
+  // Next 21:00 GMT closing time
+  const target = new Date(now);
+  target.setUTCHours(21, 0, 0, 0);
+  if (now.getUTCHours() >= 21) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+
+  const diffMs = Math.max(0, target.getTime() - now.getTime());
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const timeRemainingFormatted = `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+
+  return {
+    isClosed,
+    closesAtFormatted: '21:00 GMT',
+    timeRemainingFormatted
+  };
+}

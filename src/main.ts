@@ -19,14 +19,14 @@ import { AVATAR_ROSTER } from './data/avatars';
 import { familyStore } from './state/familyStore';
 import { GameType } from './types';
 import { soundAudio } from './utils/audio';
-import { getTodayDateKey, getYesterdayDateKey } from './utils/dailyClock';
+import { getTodayDateKey, getYesterdayDateKey, isRaceClosedForDate } from './utils/dailyClock';
 import { liveSyncManager } from './utils/liveSync';
 import { IslandWorld3D } from './world/islandWorld3D';
 
 // Build tag: changes the bundle content on each deploy so Vite emits a fresh
 // asset hash — device caches holding a stale index.html can't 404 on a
 // replaced asset and get the new island immediately.
-(window as { __HENRY_BUILD__?: string }).__HENRY_BUILD__ = '2026-11-09-1';
+(window as { __HENRY_BUILD__?: string }).__HENRY_BUILD__ = '2026-11-12-1';
 
 class App {
   private world: IslandWorld3D;
@@ -53,8 +53,9 @@ class App {
       onOpenAdvent: () => this.openAdventModal()
     });
 
-    // Midnight rollover: finalise & lock the finished day's race ranking
-    // (points then become permanent instead of live-re-ranking).
+    // Rollover & cutoff timer:
+    // - Closes/locks race at 21:00 GMT daily (applying points for table standings).
+    // - Midnight rollover: finalise & lock the finished day's race ranking.
     this.lastDayKey = getTodayDateKey();
     window.setInterval(() => {
       const now = getTodayDateKey();
@@ -62,14 +63,18 @@ class App {
         familyStore.lockRaceScoresForDate(getYesterdayDateKey(now));
         this.lastDayKey = now;
       }
+      if (isRaceClosedForDate(now)) {
+        familyStore.lockRaceScoresForDate(now);
+      }
     }, 30000);
 
     // 3. UI Setup & Header Badges
     this.setupUI();
     this.setupJoystick();
 
-    // 4. Prompt device player selection if first time on this device, then check previous day's rankings
-    setTimeout(() => {
+    // 4. Prompt device player selection once initial cloud sync has arrived
+    // (so family roster like Dylan, Sophia, Oliver is already populated instead of template defaults).
+    liveSyncManager.whenReady(1800).then(() => {
       if (!familyStore.isDeviceLocked()) {
         new DevicePlayerSelectModal(() => {
           this.updateHeaderBadge();
@@ -78,7 +83,7 @@ class App {
       } else {
         this.checkAndShowPreviousDayModal();
       }
-    }, 400);
+    });
   }
 
   private setupUI(): void {
@@ -442,7 +447,11 @@ class App {
   }
 }
 
-// Start on DOM content loaded
-window.addEventListener('DOMContentLoaded', () => {
+// Start on DOM content loaded (or immediately if document is already ready/interactive)
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', () => {
+    new App();
+  });
+} else {
   new App();
-});
+}
