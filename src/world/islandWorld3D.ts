@@ -144,6 +144,8 @@ export class IslandWorld3D {
   private adventLastOpened = -1;
   private adventLastDay = -1;
   private adventLastCosmetic = "";
+  private lastActivePlayerId = "";
+  private lastAvatarId = "";
 
 
   // Proximity prompt
@@ -192,6 +194,12 @@ export class IslandWorld3D {
     this.buildExplorationAreas();
     this.buildDecorations();
     this.buildScavengerItems();
+
+    // 6. Player & Sailboat (instantiated before dependent systems like advent cosmetics)
+    this.buildPlayer();
+    this.buildSailboat();
+
+    // 7. Advent Calendar, Ocean & Mini-Games
     this.buildAdventCalendar();
     this.buildOceanBoundary();
     this.raceCourse = getDailyRaceCourse();
@@ -200,24 +208,24 @@ export class IslandWorld3D {
     this.buildPenguins();
     this.buildSnowfall();
 
-    // 6. Player & Sailboat
-    this.buildPlayer();
-    this.buildSailboat();
-
-    // 7. Interactive Portals Registration
+    // 8. Interactive Portals Registration
     this.setupPortals();
 
-    // 8. Event Listeners
+    // 9. Event Listeners
     this.setupInputs();
 
-    // 9. Subscribe to store for podium snowmen & scavenger updates
+    // 10. Subscribe to store for player, podium snowmen & scavenger updates
     this.unsubscribeStore = familyStore.subscribe(() => {
+      const active = familyStore.getActivePlayer();
+      if (active.id !== this.lastActivePlayerId || active.avatarId !== this.lastAvatarId) {
+        this.rebuildPlayer();
+      }
       this.updatePodiumSnowmen();
       this.syncScavengerItemVisibility();
       this.syncAdventVisuals();
     });
 
-    // 10. Start Animation Loop
+    // 11. Start Animation Loop
     this.animate();
   }
 
@@ -1612,10 +1620,12 @@ export class IslandWorld3D {
   /** Attach/detach the active player's advent cosmetic on their avatar. */
   private applyAdventCosmetic(id: string): void {
     if (this.adventCosmeticGroup) {
-      this.playerGroup.remove(this.adventCosmeticGroup);
+      if (this.playerGroup) {
+        this.playerGroup.remove(this.adventCosmeticGroup);
+      }
       this.adventCosmeticGroup = null;
     }
-    if (!id) return;
+    if (!id || !this.playerGroup) return;
     const c = buildAdventCosmetic(id);
     if (c) {
       this.adventCosmeticGroup = c;
@@ -3059,6 +3069,20 @@ export class IslandWorld3D {
   }
 
   /**
+   * Rebuilds player avatar when the active player or their avatar changes.
+   */
+  public rebuildPlayer(): void {
+    if (this.playerGroup) {
+      if (this.adventCosmeticGroup) {
+        this.playerGroup.remove(this.adventCosmeticGroup);
+        this.adventCosmeticGroup = null;
+      }
+      this.scene.remove(this.playerGroup);
+    }
+    this.buildPlayer();
+  }
+
+  /**
    * Builds player avatar with an unmistakable, cheerful, happy Animal Crossing smiling face!
    */
   private buildPlayer(): void {
@@ -3066,6 +3090,8 @@ export class IslandWorld3D {
     this.playerGroup.position.copy(this.playerPos);
 
     const activePlayer = familyStore.getActivePlayer();
+    this.lastActivePlayerId = activePlayer.id;
+    this.lastAvatarId = activePlayer.avatarId;
     const avatarDef = AVATAR_ROSTER.find(a => a.id === activePlayer.avatarId) || AVATAR_ROSTER[0];
     const coatColor = avatarDef.color ? parseInt(avatarDef.color.replace('#', '0x')) : 0x0284c7;
     const hatColor = avatarDef.hatColor ? parseInt(avatarDef.hatColor.replace('#', '0x')) : 0xdc2626;
@@ -3191,6 +3217,12 @@ export class IslandWorld3D {
     this.playerGroup.add(this.playerLegR);
 
     this.scene.add(this.playerGroup);
+
+    // Apply worn advent cosmetic if present for the active player
+    const wornCosmetic = familyStore.getWornAdventCosmetic(activePlayer.id);
+    if (wornCosmetic) {
+      this.applyAdventCosmetic(wornCosmetic);
+    }
   }
 
   /**

@@ -23,10 +23,26 @@ import { getTodayDateKey, getYesterdayDateKey, isRaceClosedForDate } from './uti
 import { liveSyncManager } from './utils/liveSync';
 import { IslandWorld3D } from './world/islandWorld3D';
 
+// Unregister any stale service workers or caches from previous sessions
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    for (const reg of regs) {
+      reg.unregister();
+    }
+  }).catch(() => {});
+}
+if (typeof window !== 'undefined' && 'caches' in window) {
+  caches.keys().then(keys => {
+    for (const key of keys) {
+      caches.delete(key);
+    }
+  }).catch(() => {});
+}
+
 // Build tag: changes the bundle content on each deploy so Vite emits a fresh
 // asset hash — device caches holding a stale index.html can't 404 on a
 // replaced asset and get the new island immediately.
-(window as { __HENRY_BUILD__?: string }).__HENRY_BUILD__ = '2026-11-12-1';
+(window as { __HENRY_BUILD__?: string }).__HENRY_BUILD__ = '2026-11-12-2';
 
 class App {
   private world: IslandWorld3D;
