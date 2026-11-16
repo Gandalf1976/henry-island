@@ -1,7 +1,13 @@
 import { QuizQuestion } from '../types';
+import { GEOGRAPHY_QUIZ_QUESTIONS } from './quizBankGeography';
+import { SCIENCE_QUIZ_QUESTIONS } from './quizBankScience';
+import { ENTERTAINMENT_QUIZ_QUESTIONS } from './quizBankEntertainment';
+import { SPORT_QUIZ_QUESTIONS } from './quizBankSport';
+import { GENERAL_QUIZ_QUESTIONS } from './quizBankGeneral';
+import { MUSIC_QUIZ_QUESTIONS } from './quizBankMusic';
 
 /**
- * 240 high-quality, family-friendly teen & adult quiz questions.
+ * 240 original high-quality, family-friendly teen & adult quiz questions.
  * 40 questions per category across 6 distinct categories.
  */
 export const TEEN_QUIZ_QUESTIONS: QuizQuestion[] = [
@@ -3148,43 +3154,117 @@ function getEpochDay(input: number | string): number {
 }
 
 /**
- * Deterministically retrieves 15 questions for the given date (extended from 10).
- * Guarantees ZERO question overlap between any consecutive/subsequent days.
- * Rotates across all 6 categories smoothly (3 categories provide 3 questions, 3 provide 2 questions = 15).
+ * The full family quiz bank: the original 240 questions plus the expanded
+ * banks (Geography, Science, Entertainment, Sport, General Knowledge, Music).
+ * Every category holds well over 225 questions, enough for a full 90-day
+ * no-repeat daily schedule (15 questions x 90 days = 1350 total).
+ */
+export const ALL_QUIZ_QUESTIONS: QuizQuestion[] = [
+  ...TEEN_QUIZ_QUESTIONS,
+  ...GEOGRAPHY_QUIZ_QUESTIONS,
+  ...SCIENCE_QUIZ_QUESTIONS,
+  ...ENTERTAINMENT_QUIZ_QUESTIONS,
+  ...SPORT_QUIZ_QUESTIONS,
+  ...GENERAL_QUIZ_QUESTIONS,
+  ...MUSIC_QUIZ_QUESTIONS,
+];
+
+const QUIZ_CATEGORIES: QuizQuestion['category'][] = [
+  'Geography',
+  'Science and Nature',
+  'Entertainment',
+  'Sport',
+  'General Knowledge',
+  'Music'
+];
+
+/** How many days the daily schedule runs before cycling. */
+export const QUIZ_CYCLE_DAYS = 90;
+
+/** Deterministic 32-bit FNV-1a string hash. */
+function fnvHash(str: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
+/** Small deterministic PRNG (mulberry32). Returns values in [0, 1). */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Deterministic shuffle: returns a new, seeded-shuffled copy of the array. */
+function seededShuffle<T>(items: readonly T[], seed: number): T[] {
+  const arr = [...items];
+  const rand = mulberry32(seed);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+  return arr;
+}
+
+/**
+ * Builds the fixed 90-day schedule once, at module load.
+ *
+ * Each day has 15 questions: 3 from one rotating "bonus" category and 2 from
+ * each of the other five. Within the 90-day cycle every category is drawn
+ * from a seeded-shuffled pool without replacement (195 questions per category,
+ * which fits inside every category's ~225+ pool), so no question repeats
+ * anywhere in the 90 days. After day 90 the cycle starts again.
+ */
+function buildQuizSchedule(): QuizQuestion[][] {
+  const pools = new Map<string, QuizQuestion[]>();
+  for (const cat of QUIZ_CATEGORIES) {
+    const pool = ALL_QUIZ_QUESTIONS.filter(q => q.category === cat);
+    pools.set(cat, seededShuffle(pool, fnvHash('quiz-shuffle-v1-' + cat)));
+  }
+
+  const cursors = new Map<string, number>();
+  QUIZ_CATEGORIES.forEach(cat => cursors.set(cat, 0));
+
+  const schedule: QuizQuestion[][] = [];
+  for (let d = 0; d < QUIZ_CYCLE_DAYS; d++) {
+    const day: QuizQuestion[] = [];
+    QUIZ_CATEGORIES.forEach((cat, c) => {
+      const pool = pools.get(cat)!;
+      const take = (d + c) % QUIZ_CATEGORIES.length < 3 ? 3 : 2;
+      for (let i = 0; i < take; i++) {
+        // Pools are large enough the cursor never wraps within one cycle;
+        // the modulo is only a safety net for future pool reductions.
+        day.push(pool[cursors.get(cat)! % pool.length]);
+        cursors.set(cat, cursors.get(cat)! + 1);
+      }
+    });
+    schedule.push(seededShuffle(day, fnvHash('quiz-day-v1-' + d)));
+  }
+  return schedule;
+}
+
+/** The pre-computed 90-day daily quiz schedule (index = day slot 0-89). */
+const QUIZ_SCHEDULE: QuizQuestion[][] = buildQuizSchedule();
+
+/**
+ * Deterministically retrieves 15 questions for the given date.
+ *
+ * The date maps to a slot in the fixed 90-day schedule, so every family
+ * member gets the same 15 questions on the same day, and no question repeats
+ * anywhere in the 90-day cycle (1350 distinct questions of the ~1367 bank).
  */
 export function getDailyQuizQuestions(dateInput: number | string): QuizQuestion[] {
   const day = getEpochDay(dateInput);
-  const categories: QuizQuestion['category'][] = [
-    'Geography',
-    'Science and Nature',
-    'Entertainment',
-    'Sport',
-    'General Knowledge',
-    'Music'
-  ];
-
-  const pools = categories.map(cat => TEEN_QUIZ_QUESTIONS.filter(q => q.category === cat));
-  const selected: QuizQuestion[] = [];
-
-  for (let c = 0; c < 6; c++) {
-    const pool = pools[c];
-    if (!pool || pool.length === 0) continue;
-
-    const normalizedDay = ((day % 100000) + 100000) % 100000;
-    let offset = 0;
-    for (let d = 0; d < (normalizedDay % pool.length); d++) {
-      const count = ((c + d) % 6 < 3) ? 3 : 2;
-      offset += count;
-    }
-
-    const countToday = ((c + normalizedDay) % 6 < 3) ? 3 : 2;
-    const startIdx = offset % pool.length;
-
-    for (let i = 0; i < countToday; i++) {
-      const qIdx = (startIdx + i) % pool.length;
-      selected.push(pool[qIdx]);
-    }
-  }
-
-  return selected;
+  const slot = ((day % QUIZ_CYCLE_DAYS) + QUIZ_CYCLE_DAYS) % QUIZ_CYCLE_DAYS;
+  return QUIZ_SCHEDULE[slot];
 }

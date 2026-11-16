@@ -19,7 +19,7 @@ import { AVATAR_ROSTER } from './data/avatars';
 import { familyStore } from './state/familyStore';
 import { GameType } from './types';
 import { soundAudio } from './utils/audio';
-import { getTodayDateKey, getYesterdayDateKey, isRaceClosedForDate } from './utils/dailyClock';
+import { getRaceCutoffEpoch, getTodayDateKey, getYesterdayDateKey, getNextDateKeyAfterCutoff } from './utils/dailyClock';
 import { liveSyncManager } from './utils/liveSync';
 import { IslandWorld3D } from './world/islandWorld3D';
 
@@ -42,13 +42,15 @@ if (typeof window !== 'undefined' && 'caches' in window) {
 // Build tag: changes the bundle content on each deploy so Vite emits a fresh
 // asset hash — device caches holding a stale index.html can't 404 on a
 // replaced asset and get the new island immediately.
-(window as { __HENRY_BUILD__?: string }).__HENRY_BUILD__ = '2026-11-12-2';
+(window as { __HENRY_BUILD__?: string }).__HENRY_BUILD__ = '2026-11-12-3';
 
 class App {
   private world: IslandWorld3D;
   private modalHost: HTMLElement;
   private activeGameInstance: WordleGame | LakeGame | QuizGame | WordLadderGame | Target24Game | null = null;
   private raceModal: RaceResultsModal | null = null;
+  private raceDeadlineDayKey: string;
+  private raceDeadlineEpoch: number;
   private lastDayKey: string;
 
   constructor() {
@@ -69,20 +71,36 @@ class App {
       onOpenAdvent: () => this.openAdventModal()
     });
 
-    // Rollover & cutoff timer:
-    // - Closes/locks race at 21:00 GMT daily (applying points for table standings).
-    // - Midnight rollover: finalise & lock the finished day's race ranking.
+    // Race deadline rollover: the daily boat race ends at 21:00 GMT, so the
+    // day's race ranking is finalised & locked at that moment (points become
+    // permanent instead of live-re-ranking) — not at local midnight.
+    this.raceDeadlineDayKey = getTodayDateKey();
+    this.raceDeadlineEpoch = getRaceCutoffEpoch(this.raceDeadlineDayKey);
     this.lastDayKey = getTodayDateKey();
+    if (Date.now() >= this.raceDeadlineEpoch) {
+      // Today's race is already over (opened after 21:00 GMT): lock it now
+      // and move the deadline on to tomorrow. Idempotent — safe if already locked.
+      familyStore.lockRaceScoresForDate(this.raceDeadlineDayKey);
+      this.raceDeadlineDayKey = getNextDateKeyAfterCutoff(this.raceDeadlineDayKey);
+      this.raceDeadlineEpoch = getRaceCutoffEpoch(this.raceDeadlineDayKey);
+    }
+    // Catch up on any cutoff we missed (device was closed through 21:00 GMT).
+    familyStore.lockRaceScoresForDate(getYesterdayDateKey());
+
     window.setInterval(() => {
+      if (Date.now() >= this.raceDeadlineEpoch) {
+        familyStore.lockRaceScoresForDate(this.raceDeadlineDayKey);
+        this.raceDeadlineDayKey = getNextDateKeyAfterCutoff(this.raceDeadlineDayKey);
+        this.raceDeadlineEpoch = getRaceCutoffEpoch(this.raceDeadlineDayKey);
+      }
+      // Midnight rollover safety net for a device left open past midnight
+      // (idempotent — the 21:00 GMT lock usually covers this already).
       const now = getTodayDateKey();
       if (now !== this.lastDayKey) {
         familyStore.lockRaceScoresForDate(getYesterdayDateKey(now));
         this.lastDayKey = now;
       }
-      if (isRaceClosedForDate(now)) {
-        familyStore.lockRaceScoresForDate(now);
-      }
-    }, 30000);
+    }, 10000);
 
     // 3. UI Setup & Header Badges
     this.setupUI();

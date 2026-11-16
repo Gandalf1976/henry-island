@@ -27,7 +27,7 @@ The 2D canvas has been upgraded to a rich, expansive 3D Three.js Island:
 Bigger Scale & Buildings:
 🟩 Wordle Lodge: Timber-framed log cottage with snow-covered roof, brick chimney, and cozy windows.
 🪷 Frozen Lake: Translucent frozen blue ice rink with wooden observation deck and lamp posts.
-🧠 Quiz Lodge: Cozy alpine chalet where the 60-second quiz is hosted.
+🧠 Quiz Lodge: Cozy alpine chalet where the 90-second quiz is hosted.
 ⛄ Town Square Podium: 3D elevated podium with dynamic snowmen representing 1st, 2nd, and 3rd place.
 📌 Bulletin Board: Rustic wooden corkboard notice board in the village center.
 🎅 Santa's Sleigh & Reindeer: Santa in his big red sleigh loaded with gifts and Rudolph with his glowing red nose.
@@ -70,8 +70,9 @@ Game	Location	Time Limit	Rules & Scoring
 🪷 Henry-Lake	Frozen Lake	120s	Scrambled 9-letter word anagram puzzle.
 • 1 pt per valid word (3+ letters) landing on lake lilypads.
 • +5 bonus points for finding the full 9-letter word!
-🧠 Henry-Quiz	Quiz Lodge	60s	10 rapid-fire multiple-choice questions for teens across Geography, Science, Entertainment, Sport, General Knowledge, and Music.
+🧠 Henry-Quiz	Quiz Lodge	90s	15 rapid-fire multiple-choice questions across Geography, Science, Entertainment, Sport, General Knowledge, and Music.
 • 1 pt per correct answer.
+• 1,350+ question bank on a fixed 90-day schedule — the same 15 questions for everyone each day, and no question repeats for 90 days.
 🪜 Henry Word Ladder	Word Ladder Lodge	90s	Step from the start word to the target word, changing one letter at a time.
 • Shorter ladders score more (see the in-game scoring hint).
 🎯 Henry Target 24	Math Chalet (SW)	90s per puzzle × 3	Each round deals 5 random numbers (1–10) and a random target (3–99). Build a formula with +, −, ×, ÷ and parentheses that lands exactly on the target — every round is guaranteed solvable.
@@ -85,7 +86,7 @@ Game	Location	Time Limit	Rules & Scoring
 IMPORTANT
 
 The daily games (Wordle, Lake, Quiz, Word Ladder, Target 24) can only be played once per day per player. Once completed, a wooden CLOSED sign appears on the entrance until midnight reset.
-The **Boat Race is repeatable** — sail it as many times as you like; your best time of the day is what counts on the race board.
+The **Boat Race is repeatable** — sail it as many times as you like; your best time of the day is what counts on the race board. The race **ends at 21:00 GMT**: points are locked to your position on the board at that moment (1st = 15 pts, then 12/10/8/5/3).
 
 ---
 

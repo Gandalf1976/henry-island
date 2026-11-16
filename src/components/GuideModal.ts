@@ -256,6 +256,7 @@ export class GuideModal {
             </div>
             <p class="text-xs text-slate-300 mb-1.5">15 rapid-fire multiple-choice questions on a 90-second timer.</p>
             <p class="text-xs text-slate-300">Covers Geography, Science & Nature, Entertainment, Sport, General Knowledge, and Music!</p>
+            <p class="text-xs text-slate-400 mt-1">Fresh 15 every day from a 1,350+ question bank — no question repeats for 90 days.</p>
           </div>
 
           <!-- Game 5: Target 24 -->
@@ -376,7 +377,7 @@ export class GuideModal {
 
               <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <strong class="text-sky-300 block mb-1">🏁 Boat Race (repeatable)</strong>
-                <p class="text-slate-300 text-[11px]">Start at the <strong>Race Dock</strong> on the south-east beach: walk out the wooden pier, board the boat at the tip, and cross the <strong>GO line</strong> to launch. Race through 10 numbered gates in order — a <strong>green arrow</strong> always points at your next gate. Fastest time of the day: <strong>15 pts</strong> • 2nd 12 • 3rd 10 • 4th 8 • 5th 5 • 6th 3. Live re-ranking — points lock at midnight!</p>
+                <p class="text-slate-300 text-[11px]">Start at the <strong>Race Dock</strong> on the south-east beach: walk out the wooden pier, board the boat at the tip, and cross the <strong>GO line</strong> to launch. Race through 10 numbered gates in order — a <strong>green arrow</strong> always points at your next gate. Fastest time of the day: <strong>15 pts</strong> • 2nd 12 • 3rd 10 • 4th 8 • 5th 5 • 6th 3. The race ends at <strong>21:00 GMT</strong> — live re-ranking until then, at 21:00 the points lock to your position and are added to your daily score!</p>
                 <p class="text-green-300 text-[11px] mt-1">⚡ <strong>Accelerator:</strong> hold your direction and the engine builds up to <strong>3× speed</strong> (1 second to full). Change direction and it drops back to base speed — smooth and precise around the gates wins the race!</p>
               </div>
               <div class="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/40">

@@ -115,3 +115,33 @@ export function getRaceClosingStatus(now = new Date()): {
     timeRemainingFormatted
   };
 }
+
+// --- Boat Race cutoff (epoch-precise) ---
+//
+// The daily boat race ends at 21:00 GMT: positions at that moment are the
+// final ones and the points are locked from them (instead of local midnight,
+// which meant points were lost if no device was open at the rollover).
+
+/** Hour (GMT) at which the daily boat race closes. */
+export const RACE_CUTOFF_HOUR_GMT = 21;
+
+/** Epoch ms of the race cutoff (21:00 GMT) on the calendar date of a date key. */
+export function getRaceCutoffEpoch(dateKey: string): number {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, RACE_CUTOFF_HOUR_GMT, 0, 0, 0)).getTime();
+}
+
+/** True while a date's boat race is still open (before its 21:00 GMT cutoff). */
+export function isRaceOpenForDate(dateKey: string, now: Date = new Date()): boolean {
+  return now.getTime() < getRaceCutoffEpoch(dateKey);
+}
+
+/** The next date key after a date whose 21:00 GMT cutoff has passed. */
+export function getNextDateKeyAfterCutoff(dateKey: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + 1);
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  return `${date.getUTCFullYear()}-${mm}-${dd}`;
+}

@@ -28,9 +28,9 @@ export interface PlayerProfile {
       scavengerCompleted?: boolean;
       /** Best boat-race time of the day in milliseconds (lower is better). */
       raceTimeMs?: number;
-      /** Points from the final daily race ranking, written when the day locks at midnight. */
+      /** Points from the final daily race ranking — written, and baked into totalDayScore/totalScore, when the race locks at 21:00 GMT. */
       raceLockedPoints?: number;
-      /** True once the day's race ranking has been finalised. */
+      /** True once the day's race ranking has been finalised at the 21:00 GMT cutoff. */
       raceLocked?: boolean;
       /** True if this player was the one to collect the day's advent golden treasure. */
       adventTreasureFound?: boolean;

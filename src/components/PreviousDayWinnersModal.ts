@@ -59,7 +59,11 @@ export class PreviousDayWinnersModal {
                 </div>
                 <div class="text-left">
                   <div class="text-xl sm:text-2xl font-black text-white">${winner.player.name}</div>
-                  <div class="text-xs text-amber-200 font-bold">Total: <span class="text-amber-400 text-base font-black">${winner.totalDayScore} pts</span></div>
+                  <div class="text-xs text-amber-200 font-bold">Total: <span class="text-amber-400 text-base font-black">${winner.totalDayScore} pts</span>${
+                    winner.raceScore !== undefined
+                      ? ` <span class="text-sky-300 font-bold ml-1.5">⛵ Boat Race +${winner.raceScore}</span>`
+                      : ''
+                  }</div>
                 </div>
               </div>
             </div>

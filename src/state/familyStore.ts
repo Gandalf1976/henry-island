@@ -1,6 +1,6 @@
 import { AVATAR_ROSTER, DEFAULT_FAMILY_MEMBERS } from '../data/avatars';
 import { BulletinMessage, GameType, PlayerProfile, PlayerScoreStats } from '../types';
-import { getTodayDateKey, getYesterdayDateKey, isRaceClosedForDate } from '../utils/dailyClock';
+import { getTodayDateKey, getYesterdayDateKey, isRaceClosedForDate, isRaceOpenForDate } from '../utils/dailyClock';
 import { ADVENT_START, getDoor, adventDayFor, ADVENT_COSMETICS, AdventDoor } from '../data/advent';
 
 const STORAGE_KEY = 'henry_island_family_data_v1';
@@ -434,8 +434,9 @@ class FamilyStore {
   public getPreviousDayRanking(targetDateKey?: string): PreviousDayRankingResult {
     const dateKey = targetDateKey || getYesterdayDateKey(getTodayDateKey());
     
-    // Ensure race scores for the date are locked and points computed
-    this.lockRaceScoresForDate(dateKey);
+    // Ensure the closed race day is finalised before computing points (this
+    // bakes the points into the stored scores). Open days are left to live re-rank.
+    if (!isRaceOpenForDate(dateKey)) this.lockRaceScoresForDate(dateKey);
 
     let dateFormatted = dateKey;
     try {
@@ -454,12 +455,17 @@ class FamilyStore {
 
     for (const player of this.players) {
       const rec = player.history?.[dateKey];
-      const racePts = this.getPlayerRacePoints(player.id, dateKey);
-      const totalDayScore = (rec?.totalDayScore || 0) + racePts;
-      const hasGames = rec?.completedGames && rec.completedGames.length > 0;
-      const hasRace = rec?.raceTimeMs !== undefined;
+      if (!rec) continue;
+      // Daily score = stored day score + race points. Once the day's race is
+      // locked (21:00 GMT cutoff) the points were already added to
+      // totalDayScore by lockRaceScoresForDate, so return 0 here — no double
+      // count. On a still-open day the live leaderboard points are added.
+      const racePts = rec.raceLocked ? 0 : this.getPlayerRacePoints(player.id, dateKey);
+      const totalDayScore = (rec.totalDayScore || 0) + racePts;
+      const hasGames = (rec.completedGames || []).length > 0;
+      const hasRace = rec.raceTimeMs !== undefined;
 
-      if (rec && (hasGames || totalDayScore > 0 || hasRace)) {
+      if (hasGames || totalDayScore > 0 || hasRace) {
         participants.push({
           player,
           totalDayScore,
@@ -470,7 +476,9 @@ class FamilyStore {
           wordLadderScore: rec.wordLadderScore,
           target24Score: rec.target24Score,
           scavengerScore: rec.scavengerScore,
-          raceScore: racePts > 0 ? racePts : undefined,
+          // Points earned on the race board: the locked value once the day
+          // finalised at 21:00 GMT, otherwise the live board position.
+          raceScore: (rec.raceLocked ? (rec.raceLockedPoints ?? 0) : racePts) || undefined,
           raceTimeMs: rec.raceTimeMs
         });
       }
@@ -602,6 +610,10 @@ class FamilyStore {
       dayRecord.scavengerScore = undefined;
       dayRecord.scavengerFoundIds = [];
       dayRecord.scavengerCompleted = false;
+      // The race is part of the day too: clear it so its points don't linger.
+      dayRecord.raceTimeMs = undefined;
+      dayRecord.raceLockedPoints = undefined;
+      dayRecord.raceLocked = false;
     }
 
     this.notify();
@@ -650,10 +662,12 @@ class FamilyStore {
    * is better); the merge is min-only so personal bests never regress.
    * If the race is already closed for points (past 21:00 GMT), earlier racers
    * remain locked and new racers are locked with 0 daily points (practice mode).
+   * Finishes after the day's 21:00 GMT cutoff don't count — the race is over.
    */
   public recordRaceTime(playerId: string, timeMs: number, dateKey: string = getTodayDateKey()): boolean {
     const player = this.players.find(p => p.id === playerId);
     if (!player || timeMs <= 0) return false;
+    if (!isRaceOpenForDate(dateKey)) return false; // race ended at 21:00 GMT
     if (!player.history) player.history = {};
     if (!player.history[dateKey]) {
       player.history[dateKey] = { completedGames: [], totalDayScore: 0 };
@@ -683,9 +697,15 @@ class FamilyStore {
   }
 
   /**
-   * Race points for a player on a date.
-   * - If closed (past day or today >= 21:00 GMT): returns locked points (auto-locks if needed).
-   * - If open (today < 21:00 GMT): derived from the current daily leaderboard (re-ranks live).
+   * Race points for a player on a date (for display).
+   * - Locked day (finalised at the 21:00 GMT cutoff): the locked points.
+   * - Closed but not yet locked (every device was closed at the cutoff):
+   *   auto-locks, then returns the locked points.
+   * - Open (today before 21:00 GMT): derived from the current daily
+   *   leaderboard (re-ranks live as family members set faster times).
+   * NOTE: on a locked day the points are ALSO already baked into
+   * totalDayScore/totalScore by lockRaceScoresForDate — code that builds a
+   * day total must guard with `rec.raceLocked ? 0 : ...` to avoid double counting.
    */
   public getPlayerRacePoints(playerId: string, dateKey: string = getTodayDateKey()): number {
     const player = this.players.find(p => p.id === playerId);
@@ -699,31 +719,40 @@ class FamilyStore {
       this.lockRaceScoresForDate(dateKey);
       return rec.raceLockedPoints ?? 0;
     }
-
     const entry = this.getRaceLeaderboard(dateKey).find(e => e.player.id === playerId);
     return entry?.points ?? 0;
   }
 
   /**
-   * Finalisation (at 21:00 GMT, rollover, or on-demand): lock each player's race points
-   * for a closed race day (idempotent — skips days already locked unless force is true).
-   * Points then become permanent.
+   * Race finalisation: when the day's 21:00 GMT cutoff passes, add each
+   * racer's points to their daily score (totalDayScore) and running total
+   * (totalScore), and mark the day's race locked. Idempotent — skips days
+   * already locked, so it can never double-add even if it fires on several
+   * devices. The raceLocked/raceLockedPoints flags sync across the family's
+   * devices via the merge, and every open device finalises at the same
+   * cutoff, so the points land exactly once per player on every device.
+   * From then on the points are part of the stored scores (podium,
+   * previous-day winners, header, totals) and live re-ranking stops.
    */
-  public lockRaceScoresForDate(dateKey: string, force = false): boolean {
+  public lockRaceScoresForDate(dateKey: string): boolean {
     const racers = this.getRacersForDate(dateKey);
     if (racers.length === 0) return false;
     const board = this.getRaceLeaderboard(dateKey);
     let changed = false;
     for (const racer of racers) {
       const rec = racer.player.history?.[dateKey];
-      if (!rec) continue;
-      if (rec.raceLocked && !force) continue;
-      const entry = board.find(e => e.player.id === racer.player.id);
-      rec.raceLockedPoints = entry?.points ?? 0;
+      if (!rec || rec.raceLocked) continue;
+      const points = board.find(e => e.player.id === racer.player.id)?.points ?? 0;
+      rec.raceLockedPoints = points;
       rec.raceLocked = true;
+      rec.totalDayScore = (rec.totalDayScore || 0) + points; // points join the daily score
+      racer.player.totalScore = (racer.player.totalScore || 0) + points; // ...and the running total
       changed = true;
     }
-    if (changed) this.save();
+    if (changed) {
+      this.save();
+      this.notify();
+    }
     return changed;
   }
 

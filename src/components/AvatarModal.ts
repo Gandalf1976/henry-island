@@ -1,7 +1,7 @@
 import { AVATAR_ROSTER } from '../data/avatars';
 import { familyStore } from '../state/familyStore';
 import { soundAudio } from '../utils/audio';
-import { getTimeUntilMidnight, getTodayDateKey } from '../utils/dailyClock';
+import { getTimeUntilMidnight, getTodayDateKey, isRaceOpenForDate } from '../utils/dailyClock';
 import { drawSnowman } from '../utils/snowmanRenderer';
 import { DevicePlayerSelectModal } from './DevicePlayerSelectModal';
 import { ManagePlayersModal } from './ManagePlayersModal';
@@ -23,6 +23,16 @@ export class AvatarModal {
     const countdown = getTimeUntilMidnight();
     const stats = familyStore.getPlayerScoreStats(activePlayer, today);
     const isLocked = familyStore.isDeviceLocked();
+
+    // Boat race status: open until the 21:00 GMT cutoff, then final.
+    const raceOpen = isRaceOpenForDate(today);
+    const raceRec = activePlayer.history?.[today];
+    const raceEarned =
+      raceRec?.raceTimeMs !== undefined
+        ? raceRec.raceLocked
+          ? raceRec.raceLockedPoints ?? 0
+          : familyStore.getPlayerRacePoints(activePlayer.id, today)
+        : 0;
 
     const currentAvatar = AVATAR_ROSTER.find(a => a.id === activePlayer.avatarId) || AVATAR_ROSTER[0];
 
@@ -127,6 +137,28 @@ export class AvatarModal {
                   </div>
                 `;
               }).join('')}
+
+              <!-- Boat Race (repeatable — open until 21:00 GMT) -->
+              <div class="p-2.5 rounded-2xl border flex items-center justify-between ${
+                raceOpen ? 'bg-sky-900/30 border-sky-400/60' : 'bg-slate-800/40 border-slate-700/60 opacity-80'
+              }">
+                <div class="flex items-center gap-2.5">
+                  <span class="text-2xl">⛵</span>
+                  <div>
+                    <div class="font-bold text-xs text-white">Boat Race <span class="text-[10px] text-sky-300/80 font-semibold">(repeatable — best time counts)</span></div>
+                    <div class="text-[11px] text-slate-400">Race Dock (10 Gates, ends 21:00 GMT)</div>
+                  </div>
+                </div>
+                <div>
+                  ${
+                    raceOpen
+                      ? `<span class="px-2.5 py-1 bg-sky-600 text-white font-black text-xs rounded-xl shadow-sm animate-pulse">⛵ OPEN</span>`
+                      : raceEarned > 0
+                        ? `<span class="px-2.5 py-1 bg-slate-700 text-sky-300 font-bold text-xs rounded-xl">🔒 +${raceEarned} pts</span>`
+                        : `<span class="px-2.5 py-1 bg-slate-700 text-slate-400 font-bold text-xs rounded-xl">🔒 21:00 GMT</span>`
+                  }
+                </div>
+              </div>
             </div>
           </div>
 

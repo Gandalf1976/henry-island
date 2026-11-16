@@ -5,7 +5,7 @@ import { getDailyScavengerItems } from '../data/scavengerItems';
 import { familyStore, LeaderboardEntry } from '../state/familyStore';
 import { GameType } from '../types';
 import { playSound, soundAudio } from '../utils/audio';
-import { getTodayDateKey } from '../utils/dailyClock';
+import { getTodayDateKey, isRaceOpenForDate } from '../utils/dailyClock';
 import { formatRaceTime, getDailyRaceCourse, RACE_GATE_WIDTH, RACE_START_WIDTH, RaceCourse } from '../utils/raceCourse';
 import { currentAdventDay, ADVENT_DAYS, AdventDoor } from '../data/advent';
 import { buildGiftBoxWall, buildAdventDecorations, buildAdventCosmetic, buildGoldenGift, buildChallengeItem, buildSleighFinale } from './adventDecor';
@@ -64,6 +64,7 @@ export class IslandWorld3D {
   private podiumPlaquesGroups: THREE.Group[] = [];
   private candyCaneTexture: THREE.CanvasTexture | null = null;
   private santaArm?: THREE.Mesh;
+  private santaArmL?: THREE.Mesh;
   private santaTorso?: THREE.Group;
   private santaSpeechBubble?: THREE.Group;
   private santaSpeechTimer: number = 0;
@@ -386,10 +387,10 @@ export class IslandWorld3D {
     pathWest.receiveShadow = true;
     this.scene.add(pathWest);
 
-    // Path South to Santa & Sleigh (0, 1.8, 42)
-    const pathSouthGeo = new THREE.BoxGeometry(6, 0.15, 36);
+    // Path South to Santa & Sleigh (0, 1.8, 54)
+    const pathSouthGeo = new THREE.BoxGeometry(6, 0.15, 52);
     const pathSouth = new THREE.Mesh(pathSouthGeo, pathMat);
-    pathSouth.position.set(0, 1.8, 25);
+    pathSouth.position.set(0, 1.8, 33);
     pathSouth.receiveShadow = true;
     this.scene.add(pathSouth);
 
@@ -2148,6 +2149,10 @@ export class IslandWorld3D {
 
     if (!this.raceActive) {
       if (this.lineCross(px, pz, cx, cz, s.x, s.z, s.nx, s.nz, s.dx, s.dz, RACE_START_WIDTH / 2)) {
+        if (!isRaceOpenForDate(getTodayDateKey())) {
+          this.showCollectToast('⏰ The daily race ends at 21:00 GMT — come back before then!');
+          return;
+        }
         this.raceActive = true;
         this.raceStartMs = Date.now();
         this.nextGateIdx = 0;
@@ -2316,33 +2321,74 @@ export class IslandWorld3D {
 
   private buildSantaAndSleigh(): void {
     const santaGroup = new THREE.Group();
-    santaGroup.position.set(0, 1.8, 42);
+    santaGroup.position.set(0, 1.8, 54);
 
-    // Sleigh Body (Festive Crimson with Gold Trim)
-    const sleighGeo = new THREE.BoxGeometry(7, 2.5, 4.5);
+    // Sleigh unit — built at 1.5x scale so the sleigh & Santa are properly big.
+    // The cargo bed (presents) sits in the back; Santa drives from a forward
+    // seat with both hands on the reins.
     const redMat = new THREE.MeshStandardMaterial({ color: 0xbe123c, roughness: 0.6 });
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8, roughness: 0.2 });
+
+    const sleighUnit = new THREE.Group();
+    sleighUnit.scale.set(1.5, 1.5, 1.5);
+    santaGroup.add(sleighUnit);
+
+    // Cargo bed (festive crimson) — the main box, set toward the back
+    const sleighGeo = new THREE.BoxGeometry(7, 2.5, 5.5);
     const sleighMesh = new THREE.Mesh(sleighGeo, redMat);
-    sleighMesh.position.y = 1.8;
+    sleighMesh.position.set(0, 1.8, -0.8);
     sleighMesh.castShadow = true;
-    santaGroup.add(sleighMesh);
+    sleighUnit.add(sleighMesh);
+
+    // Tall rear wall the presents pile up against
+    const rearWall = new THREE.Mesh(new THREE.BoxGeometry(7, 3.4, 0.4), redMat);
+    rearWall.position.set(0, 2.3, -3.5);
+    rearWall.castShadow = true;
+    sleighUnit.add(rearWall);
+
+    // Sloped front bow — the classic sleigh nose
+    const bow = new THREE.Mesh(new THREE.BoxGeometry(6, 1.3, 0.5), redMat);
+    bow.position.set(0, 1.7, 2.2);
+    bow.rotation.x = -0.55;
+    bow.castShadow = true;
+    sleighUnit.add(bow);
+
+    // Low gold side rails out front of Santa's seat
+    const railGeo = new THREE.BoxGeometry(0.35, 0.5, 3.0);
+    const railL = new THREE.Mesh(railGeo, goldMat);
+    railL.position.set(-3.4, 2.6, 1.7);
+    sleighUnit.add(railL);
+    const railR = new THREE.Mesh(railGeo, goldMat);
+    railR.position.set(3.4, 2.6, 1.7);
+    sleighUnit.add(railR);
 
     // Gold Trim Runners
-    const runnerGeo = new THREE.CylinderGeometry(0.12, 0.12, 9, 8);
-    const goldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8, roughness: 0.2 });
+    const runnerGeo = new THREE.CylinderGeometry(0.12, 0.12, 11, 8);
 
     const runnerL = new THREE.Mesh(runnerGeo, goldMat);
     runnerL.rotation.x = Math.PI / 2;
-    runnerL.position.set(-2.0, 0.3, 0);
-    santaGroup.add(runnerL);
+    runnerL.position.set(-2.2, 0.35, 0);
+    sleighUnit.add(runnerL);
 
     const runnerR = new THREE.Mesh(runnerGeo, goldMat);
     runnerR.rotation.x = Math.PI / 2;
-    runnerR.position.set(2.0, 0.3, 0);
-    santaGroup.add(runnerR);
+    runnerR.position.set(2.2, 0.35, 0);
+    sleighUnit.add(runnerR);
 
-    // 3D Santa Model seated in sleigh
+    // Upturned runner tips at the front
+    const tipGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.5, 8);
+    const tipL = new THREE.Mesh(tipGeo, goldMat);
+    tipL.rotation.x = Math.PI / 2 + 0.6;
+    tipL.position.set(-2.2, 0.75, 5.5);
+    sleighUnit.add(tipL);
+    const tipR = new THREE.Mesh(tipGeo, goldMat);
+    tipR.rotation.x = Math.PI / 2 + 0.6;
+    tipR.position.set(2.2, 0.75, 5.5);
+    sleighUnit.add(tipR);
+
+    // 3D Santa Model seated in the forward driver's seat, hands on the reins
     const santaModel = new THREE.Group();
-    santaModel.position.set(0, 2.8, -0.6);
+    santaModel.position.set(0, 2.6, 1.4);
 
     // Body
     const sBody = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.1, 1.8, 12), redMat);
@@ -2381,36 +2427,33 @@ export class IslandWorld3D {
     pom.position.set(0.1, 3.5, -0.5);
     santaModel.add(pom);
 
-    // Left Arm resting on sleigh side
-    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 1.1, 8), redMat);
-    armL.position.set(-1.1, 1.3, 0.2);
-    armL.rotation.z = Math.PI / 4;
+    // Both arms reaching forward, holding the reins
+    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 1.15, 8), redMat);
+    armL.position.set(-1.05, 1.3, 0.7);
+    armL.rotation.x = -1.2;
+    armL.rotation.z = 0.25;
     santaModel.add(armL);
+    this.santaArmL = armL;
 
-    // Waving Right Arm (Animated!)
-    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 1.1, 8), redMat);
-    armR.position.set(1.1, 1.5, 0.2);
-    armR.rotation.z = -Math.PI / 3;
+    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 1.15, 8), redMat);
+    armR.position.set(1.05, 1.3, 0.7);
+    armR.rotation.x = -1.2;
+    armR.rotation.z = -0.25;
     santaModel.add(armR);
     this.santaArm = armR;
     this.santaTorso = santaModel;
 
-    // Golden Jingle bell in Santa's waving hand
-    const bellMesh = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9 }));
-    bellMesh.position.set(0, 0.6, 0);
-    armR.add(bellMesh);
+    sleighUnit.add(santaModel);
 
-    santaGroup.add(santaModel);
-
-    // Pile of Wrapped Holiday Presents in the Sleigh
+    // Pile of Wrapped Holiday Presents in the back of the sleigh
     const presentConfigs = [
-      { x: -1.4, y: 2.2, z: -1.0, sx: 1.3, sy: 1.1, sz: 1.2, color: 0xf59e0b, ribColor: 0xef4444 },
-      { x: 1.3, y: 2.3, z: -1.1, sx: 1.4, sy: 1.3, sz: 1.3, color: 0x10b981, ribColor: 0xfacc15 },
-      { x: -0.1, y: 2.8, z: -1.4, sx: 1.2, sy: 1.0, sz: 1.1, color: 0x3b82f6, ribColor: 0xf1f5f9 },
-      { x: -1.2, y: 3.2, z: -1.0, sx: 0.9, sy: 0.9, sz: 0.9, color: 0x8b5cf6, ribColor: 0xfacc15 },
-      { x: 1.1, y: 3.3, z: -1.1, sx: 0.85, sy: 0.85, sz: 0.85, color: 0xec4899, ribColor: 0xffffff },
-      { x: 0.0, y: 2.2, z: 0.5, sx: 1.1, sy: 0.8, sz: 0.9, color: 0x06b6d4, ribColor: 0xf59e0b },
-      { x: -2.0, y: 2.1, z: 0.2, sx: 0.8, sy: 0.8, sz: 0.8, color: 0xd97706, ribColor: 0x15803d }
+      { x: -1.6, y: 3.6, z: -2.6, sx: 1.3, sy: 1.1, sz: 1.2, color: 0xf59e0b, ribColor: 0xef4444 },
+      { x: 1.5, y: 3.7, z: -2.7, sx: 1.4, sy: 1.3, sz: 1.3, color: 0x10b981, ribColor: 0xfacc15 },
+      { x: -0.1, y: 4.2, z: -3.2, sx: 1.2, sy: 1.0, sz: 1.1, color: 0x3b82f6, ribColor: 0xf1f5f9 },
+      { x: -1.3, y: 4.6, z: -2.6, sx: 0.9, sy: 0.9, sz: 0.9, color: 0x8b5cf6, ribColor: 0xfacc15 },
+      { x: 1.2, y: 4.7, z: -2.7, sx: 0.85, sy: 0.85, sz: 0.85, color: 0xec4899, ribColor: 0xffffff },
+      { x: 0.2, y: 3.5, z: -1.4, sx: 1.1, sy: 0.8, sz: 0.9, color: 0x06b6d4, ribColor: 0xf59e0b },
+      { x: -2.4, y: 3.4, z: -1.8, sx: 0.8, sy: 0.8, sz: 0.8, color: 0xd97706, ribColor: 0x15803d }
     ];
 
     presentConfigs.forEach(p => {
@@ -2420,7 +2463,7 @@ export class IslandWorld3D {
       );
       pBox.position.set(p.x, p.y, p.z);
       pBox.castShadow = true;
-      santaGroup.add(pBox);
+      sleighUnit.add(pBox);
 
       // Cross Ribbons
       const ribH = new THREE.Mesh(
@@ -2428,30 +2471,42 @@ export class IslandWorld3D {
         new THREE.MeshStandardMaterial({ color: p.ribColor, metalness: 0.4 })
       );
       ribH.position.set(p.x, p.y, p.z);
-      santaGroup.add(ribH);
+      sleighUnit.add(ribH);
 
       const ribV = new THREE.Mesh(
         new THREE.BoxGeometry(p.sx * 0.15, p.sy + 0.04, p.sz + 0.04),
         new THREE.MeshStandardMaterial({ color: p.ribColor, metalness: 0.4 })
       );
       ribV.position.set(p.x, p.y, p.z);
-      santaGroup.add(ribV);
+      sleighUnit.add(ribV);
     });
 
-    // 2 Festive Reindeer ahead of the sleigh (Rudolph and Donner)
-    const deer1 = this.createReindeer();
-    deer1.position.set(-2.5, 0, 7.5);
-    santaGroup.add(deer1);
+    // Seven reindeer (1.5x scale): Rudolph with his glowing red nose leads at
+    // the front, the other six follow in three pairs. Reins run from the
+    // sleigh to every deer's neck.
+    const reindeerSpots = [
+      { x: 0, z: 8 }, // Rudolph — front centre
+      { x: -3.2, z: 13 }, { x: 3.2, z: 13 },
+      { x: -4, z: 17.8 }, { x: 4, z: 17.8 },
+      { x: -4.8, z: 22.6 }, { x: 4.8, z: 22.6 }
+    ];
+    reindeerSpots.forEach((spot, i) => {
+      const deer = this.createReindeer(i === 0); // red nose for Rudolph only
+      deer.position.set(spot.x, 0, spot.z);
+      deer.scale.set(1.5, 1.5, 1.5);
+      santaGroup.add(deer);
 
-    const deer2 = this.createReindeer();
-    deer2.position.set(2.5, 0, 7.5);
-    santaGroup.add(deer2);
+      // Rein from Santa's hands (sleigh front) up to this deer's neck
+      const reinStart = new THREE.Vector3(spot.x * 0.35, 5.8, 3.6);
+      const reinEnd = new THREE.Vector3(spot.x, 5.3, spot.z + 1.4);
+      this.buildRein(reinStart, reinEnd, santaGroup);
+    });
 
     // 3 Children Gathered Around Santa & Rudolph
     // Child 1 (Emma): Yellow coat, blue hat, petting Rudolph's nose
     const child1 = this.createChild(0xfacc15, 0x0284c7, 0xef4444);
-    child1.group.position.set(-3.8, 0, 7.8);
-    child1.group.rotation.y = 0.5;
+    child1.group.position.set(-2.4, 0, 10.6);
+    child1.group.rotation.y = -0.55;
     if (child1.armR) {
       child1.armR.rotation.x = -Math.PI / 3;
       child1.armR.rotation.z = -0.4;
@@ -2461,7 +2516,7 @@ export class IslandWorld3D {
 
     // Child 2 (Leo): Teal coat, cherry red hat, waving up at Santa
     const child2 = this.createChild(0x0d9488, 0xe11d48, 0xfacc15);
-    child2.group.position.set(3.4, 0, 0.6);
+    child2.group.position.set(6.8, 0, 1.6);
     child2.group.rotation.y = -Math.PI / 2.5;
     if (child2.armL && child2.armR) {
       child2.armL.rotation.x = -Math.PI / 2.5;
@@ -2472,14 +2527,14 @@ export class IslandWorld3D {
 
     // Child 3 (Mia): Warm orange coat, violet hat, jumping by the presents
     const child3 = this.createChild(0xf97316, 0x7c3aed, 0x3b82f6);
-    child3.group.position.set(-3.2, 0, -0.6);
+    child3.group.position.set(-6.8, 0, -1.2);
     child3.group.rotation.y = Math.PI / 3;
     santaGroup.add(child3.group);
     this.animatedChildren.push(child3);
 
     // Floating 3D Speech Bubble above Santa
     const bubbleGroup = new THREE.Group();
-    bubbleGroup.position.set(0, 7.6, -0.6);
+    bubbleGroup.position.set(0, 10.4, 1.4);
 
     const bubbleCanvas = document.createElement('canvas');
     bubbleCanvas.width = 512;
@@ -2538,7 +2593,7 @@ export class IslandWorld3D {
     this.scene.add(santaGroup);
   }
 
-  private createReindeer(): THREE.Group {
+  private createReindeer(redNose = false): THREE.Group {
     const deer = new THREE.Group();
     const coatMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.8 });
 
@@ -2557,10 +2612,22 @@ export class IslandWorld3D {
     head.position.set(0, 3.8, 1.8);
     deer.add(head);
 
-    // Rudolph's Red Nose
-    const redNose = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
-    redNose.position.set(0, 3.7, 2.5);
-    deer.add(redNose);
+    // Nose — Rudolph's glowing red nose, or a dark one for the other deer
+    if (redNose) {
+      const redNose = new THREE.Mesh(
+        new THREE.SphereGeometry(0.24, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xef4444 })
+      );
+      redNose.position.set(0, 3.7, 2.5);
+      deer.add(redNose);
+    } else {
+      const nose = new THREE.Mesh(
+        new THREE.SphereGeometry(0.16, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0x3b2314, roughness: 0.7 })
+      );
+      nose.position.set(0, 3.7, 2.5);
+      deer.add(nose);
+    }
 
     // Antlers
     const antlerMat = new THREE.MeshStandardMaterial({ color: 0x451a03 });
@@ -2587,6 +2654,19 @@ export class IslandWorld3D {
     });
 
     return deer;
+  }
+
+  /** Thin rein connecting two points (used for the sleigh's reins). */
+  private buildRein(from: THREE.Vector3, to: THREE.Vector3, parent: THREE.Object3D): void {
+    const dir = new THREE.Vector3().subVectors(to, from);
+    const len = dir.length();
+    if (len < 0.1) return;
+    const geo = new THREE.CylinderGeometry(0.05, 0.05, len, 5);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x7c2d12, roughness: 0.9 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(from).add(to).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    parent.add(mesh);
   }
 
   private buildDecorations(): void {
@@ -3564,8 +3644,8 @@ export class IslandWorld3D {
       },
       {
         id: 'santa',
-        pos: new THREE.Vector3(0, 1.8, 38),
-        radius: 9,
+        pos: new THREE.Vector3(0, 1.8, 50),
+        radius: 12,
         title: "🎅 Santa's Sleigh & Reindeer",
         actionText: 'Greet Santa & Rudolph'
       },
@@ -4174,13 +4254,17 @@ export class IslandWorld3D {
       }
     });
 
-    // 8. Santa's Sleigh, Waving Arm, Children & Speech Bubble
+    // 8. Santa's Sleigh, Reins, Children & Speech Bubble
     if (this.santaArm) {
-      this.santaArm.rotation.z = -Math.PI / 3 + Math.sin(time * 5) * 0.35;
-      this.santaArm.rotation.x = Math.sin(time * 4) * 0.15;
+      this.santaArm.rotation.x = -1.2 + Math.sin(time * 3) * 0.12;
+      this.santaArm.rotation.z = -0.25;
+    }
+    if (this.santaArmL) {
+      this.santaArmL.rotation.x = -1.2 + Math.sin(time * 3 + 0.6) * 0.12;
+      this.santaArmL.rotation.z = 0.25;
     }
     if (this.santaTorso) {
-      this.santaTorso.position.y = 2.8 + Math.abs(Math.sin(time * 3)) * 0.08;
+      this.santaTorso.position.y = 2.6 + Math.abs(Math.sin(time * 3)) * 0.08;
     }
 
     this.animatedChildren.forEach((child, idx) => {

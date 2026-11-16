@@ -31,7 +31,7 @@ export class RaceResultsModal {
     this.isPersonalBest = isPersonalBest;
     this.render();
     // Live re-ranking: as other family members' finishes sync in, the board
-    // (and your points) update in real time until the day locks at midnight.
+    // (and your points) update in real time until the race locks at 21:00 GMT.
     this.unsub = familyStore.subscribe(() => {
       if (!this.destroyed && this.container.isConnected) this.render();
     });
